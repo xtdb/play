@@ -87,7 +87,7 @@
        "Content 1"]
       [:div {:class "flex-1 bg-white border p-4"}
        "Content 2"]]
-     [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style="flex-grow: 3;" }
+     [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1} }
       "Bottom content"]]]])
 
 
