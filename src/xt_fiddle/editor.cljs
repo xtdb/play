@@ -12,7 +12,8 @@
             [nextjournal.livedoc :as livedoc]
             [reagent.core :as r]
             [reagent.dom :as rdom]
-            [shadow.resource :as rc]))
+            [shadow.resource :as rc]
+            [lambdaisland.glogi :as log]))
 
 (def theme
   (.theme EditorView
@@ -37,7 +38,7 @@
 (defn on-change [callback]
   (view/EditorView.updateListener.of (fn [update]
                                        (when (.-changes update)
-                                         (callback (.. update -state -doc -toString))))))
+                                         (callback (.. update -state -doc toString))))))
 
 
 (defonce extensions #js [theme

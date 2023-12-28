@@ -70,7 +70,7 @@
                                             "sql" [(mapv #(xt/sql-op %) txs)
                                                    query]
                                             (UnsupportedOperationException.))]
-                          (prn txs)
+                          #_(log/info :requst-data {:txs txs :query query :type type})
                           (try
                             (with-open [node (xtn/start-node {})]
                               (xt/submit-tx node txs)

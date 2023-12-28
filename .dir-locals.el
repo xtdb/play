@@ -2,4 +2,6 @@
          (cider-preferred-build-tool           . clojure-cli)
          (cider-redirect-server-output-to-repl . t)
          (cider-repl-display-help-banner       . nil)
-         (clojure-toplevel-inside-comment-form . t))))
+         (clojure-toplevel-inside-comment-form . t)
+         (cider-default-cljs-repl . shadow)
+         (cider-shadow-default-options . ":app"))))

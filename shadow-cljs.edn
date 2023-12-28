@@ -1,4 +1,4 @@
-{:deps {:aliases [:cljs]}
+{:deps {:aliases [:cljs :dev]}
 
  ;; TODO problems with clojure-mode
  ;; :source-paths ["src"]

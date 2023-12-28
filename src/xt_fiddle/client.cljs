@@ -1,16 +1,13 @@
 (ns xt-fiddle.client
-  (:require [cljs.reader]
-            [xt-fiddle.editor :as editor]
+  (:require [ajax.core :as ajax]
+            [clojure.string :as str]
+            [day8.re-frame.http-fx]
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
+            [reagent.core :as r]
             [reagent.dom]
-            [reagent.core :as r]))
-
-;; "framer-motion": "^6.2.8",
-;; "@codemirror/lang-javascript": "^6.0.0",
-;; "@nextjournal/clojure-mode": "^0.3.1"
-
+            [xt-fiddle.editor :as editor]))
 
 (glogi-console/install!)
 
@@ -44,11 +41,39 @@
  (fn [db _]
    (:type db)))
 
-(rf/reg-sub
- :query
- (fn [db _]
-   (:query db)))
+(rf/reg-event-db
+ :success-results
+ (fn [db [_ results]]
+   (-> db
+       (dissoc :show-twirly)
+       (assoc :results results))))
 
+(rf/reg-event-db
+ :failure-results
+ (fn [db [_ failure]]
+   (-> db
+       (dissoc :show-twirly)
+       (assoc :failure failure))))
+
+(rf/reg-event-fx
+ :db-run
+ (fn [{:keys [db]} _]
+   {:db (assoc db :show-twirly true)
+    :http-xhrio {:method :post
+                 :uri "/db-run"
+                 :params {:txs (pr-str (str "[" (:txs db) "]"))
+                          :query (:query db)
+                          :type "xtql"}
+                 :timeout 3000
+                 :format (ajax/json-request-format)
+                 :response-format (ajax/json-response-format)
+                 :on-success [:success-results]
+                 :on-failure [:failure-results]}}))
+
+(rf/reg-sub
+ :results
+ (fn [db _]
+   (:results db)))
 
 (defn dropdown []
   (let [open? (r/atom false)]
@@ -88,14 +113,16 @@
                              (rf/dispatch [:dropdown-selection :sql]))}
              "SQL"]]]])])))
 
-
 (defn app []
   [:div {:class "flex flex-col h-screen"}
    [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between" #_"bg-gray-200 p-4 text-lg font-semibold"}
     [:div {:class "flex items-center space-x-4"}
 
      [:h2 "XT fiddle"]
-     [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"}
+     [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                :on-click (fn [event]
+                            (.preventDefault event)
+                            (rf/dispatch [:db-run]))}
       "Run"]
 
      [dropdown]]]
@@ -112,7 +139,7 @@
       [:div {:class "flex-1 bg-white border p-4"}
        [editor/editor "(from :docs [xt/id foo])" {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]]]
      [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1} }
-      "Bottom"]]]])
+      (str @(rf/subscribe [:results]))]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []
