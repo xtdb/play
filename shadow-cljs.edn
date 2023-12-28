@@ -1,9 +1,12 @@
-{:source-paths ["src"]
+{:deps {:aliases [:cljs]}
 
- :dependencies [[re-frame/re-frame  "1.4.2"]
-                [com.lambdaisland/glogi "1.3.169"]
-                [cider/cider-nrepl "0.44.0"]
-                [refactor-nrepl/refactor-nrepl "3.9.0"]]
+ ;; TODO problems with clojure-mode
+ ;; :source-paths ["src"]
+ ;; :dependencies [[re-frame/re-frame  "1.4.2"]
+ ;;                [com.lambdaisland/glogi "1.3.169"]
+ ;;                [applied-science/js-interop "0.4.2"]
+ ;;                [cider/cider-nrepl "0.44.0"]
+ ;;                [refactor-nrepl/refactor-nrepl "3.9.0"]]
 
  :nrepl {:middleware [cider.nrepl/cider-middleware
                       refactor-nrepl.middleware/wrap-refactor]}

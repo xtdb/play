@@ -18,12 +18,23 @@
   org.clojure/tools.logging {:mvn/version "1.2.4"}}
 
  :aliases
- {:dev
+ {:cljs
+  {:extra-deps {thheller/shadow-cljs {:mvn/version "2.26.2"}
+                re-frame/re-frame  {:mvn/version "1.4.2"}
+                com.lambdaisland/glogi {:mvn/version "1.3.169"}
+                applied-science/js-interop {:mvn/version "0.4.2"}
+                cider/cider-nrepl {:mvn/version "0.44.0"}
+                refactor-nrepl/refactor-nrepl {:mvn/version "3.9.0"}
+                io.github.nextjournal/clojure-mode {:git/sha "5d88847aecd253e047f36565e0455bfec7f4964d"}
+                }}
+
+  :dev
   {:extra-paths ["dev"]
    :extra-deps  {org.clojure/tools.namespace {:mvn/version "1.1.0"}
                  com.lambdaisland/classpath  {:mvn/version "0.0.27"}
                  hato/hato                   {:mvn/version "0.9.0"}
-                 cheshire/cheshire           {:mvn/version "5.12.0"}}
+                 cheshire/cheshire           {:mvn/version "5.12.0"}
+                 day8.re-frame/re-frame-10x  {:mvn/version "1.9.3"}}
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
               "-Dio.netty.tryReflectionSetAccessible=true"]}
 

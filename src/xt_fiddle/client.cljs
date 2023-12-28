@@ -1,10 +1,16 @@
 (ns xt-fiddle.client
   (:require [cljs.reader]
+            [xt-fiddle.editor :as editor]
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
             [reagent.dom]
             [reagent.core :as r]))
+
+;; "framer-motion": "^6.2.8",
+;; "@codemirror/lang-javascript": "^6.0.0",
+;; "@nextjournal/clojure-mode": "^0.3.1"
+
 
 (glogi-console/install!)
 
@@ -23,10 +29,25 @@
  (fn [db [_ selection]]
    (assoc db :type selection)))
 
+(rf/reg-event-db
+ :set-txs
+ (fn [db [_ txs]]
+   (assoc db :txs txs)))
+
+(rf/reg-event-db
+ :set-query
+ (fn [db [_ query]]
+   (assoc db :query query)))
+
 (rf/reg-sub
  :selection
  (fn [db _]
    (:type db)))
+
+(rf/reg-sub
+ :query
+ (fn [db _]
+   (:query db)))
 
 
 (defn dropdown []
@@ -59,6 +80,7 @@
                              (.preventDefault event)
                              (rf/dispatch [:dropdown-selection :xtql]))}
              "XTQL"]]
+           ;; TODO actually implement editor
            [:li
             [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
                  :on-click (fn [event]
@@ -84,12 +106,13 @@
     [:div {:class "flex flex-col flex-1 overflow-hidden"}
      [:section {:class "flex flex-1 overflow-auto p-4"}
       [:div {:class "flex-1 bg-white border mr-4 p-4"}
-       "Content 1"]
+       [editor/editor "(xt/put :docs {:xt/id 1 :foo \"bar\"})" {:change-callback (fn [txs]
+                                                                                   (log/info :hello "from callback")
+                                                                                   (rf/dispatch [:set-txs txs]))}]]
       [:div {:class "flex-1 bg-white border p-4"}
-       "Content 2"]]
+       [editor/editor "(from :docs [xt/id foo])" {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]]]
      [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1} }
-      "Bottom content"]]]])
-
+      "Bottom"]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []

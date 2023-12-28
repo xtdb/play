@@ -7,7 +7,9 @@
     "react-dom": "^16.13.0",
     "react-scripts": "2.1.1",
     "shadow-cljs": "^2.26.2",
-    "tailwindcss": "^2.2.16"
+    "tailwindcss": "^2.2.16",
+    "framer-motion": "^6.2.8",
+    "@codemirror/lang-javascript": "^6.0.0"
   },
   "engines": {
     "node": ">=10"
