@@ -1,0 +1,45 @@
+{:source-paths ["src"]
+
+ :dependencies [[re-frame/re-frame  "1.4.2"]
+                [com.lambdaisland/glogi "1.3.169"]
+                [cider/cider-nrepl "0.44.0"]
+                [refactor-nrepl/refactor-nrepl "3.9.0"]]
+
+ :nrepl {:middleware [cider.nrepl/cider-middleware
+                      refactor-nrepl.middleware/wrap-refactor]}
+
+ :dev-http {8020 "resources/public"}
+
+ :builds
+ {:app
+  {:target     :browser
+
+   :modules {:app {:entries [xt-fiddle.client]
+                   ;; :preloads [devtools.preload]
+                   }}
+
+   :output-dir "resources/public/js/compiled"
+   :asset-path "/js/compiled"
+   :dev        {:compiler-options {:devcards true}}
+   :release    {:compiler-options {:warnings-as-errors true
+                                   :warnings {:redef-in-file false}
+                                   :closure-defines {goog.DEBUG false
+                                                     goog.debug.LOGGING_ENABLED true}}}
+   :js-options {:resolve
+                {"react"     {:export-globals ["React"]}
+                 "react-dom" {:export-globals ["ReactDOM"]}}}
+   :devtools   {:repl-pprint true}}}
+
+ ;; TODO understand
+ :cache-blockers #{}}
+#_
+{
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "public/js"
+   :asset-path "/js"
+
+   :modules
+   {:main ; becomes public/js/main.js
+    {:init-fn starter.browser/init}}}}}

@@ -12,6 +12,7 @@
             [reitit.ring.middleware.exception :as exception]
             [ring.middleware.params :as params]
             [ring.adapter.jetty :as jetty]
+            [ring.util.response :as response]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))
 
@@ -55,8 +56,8 @@
    [["/"
      {:get {:summary "Fetch main page"
             :handler (fn [_request]
-                       {:status 200
-                        :body home-html})}}]
+                       (response/content-type (response/resource-response "public/index.html") "text/html"))}}]
+
     ["/db-run"
      {:post {:summary "Run transactions + a query"
              :parameters {:body ::db-run}
@@ -79,8 +80,11 @@
                             (catch Exception e
                               (log/warn :submit-error {:e e})
                               {:status 400
-                               :body e}))))}}]]
-   {:exception pretty/exception
+                               :body e}))))}}]
+    ;; TODO put static resources under path without conflicts
+    ["/*" (ring/create-resource-handler)]]
+   {:conflicts (constantly nil)
+    :exception pretty/exception
     :data {:coercion rcs/coercion
            :muuntaja m/instance
            :middleware [params/wrap-params
@@ -96,7 +100,7 @@
         server (jetty/run-jetty (ring/ring-handler
                                  (router)
                                  (ring/routes
-                                  (ring/create-resource-handler {:path "/assets/"})
+                                  #_(ring/create-resource-handler {:root "public"})
                                   (ring/create-default-handler)))
                                 {:port port, :join? join})]
     (log/info "server running " "on port " port)
