@@ -2,7 +2,6 @@
   (:require [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [hiccup.core :as hiccup]
             [muuntaja.core :as m]
             [reitit.dev.pretty :as pretty]
             [reitit.ring :as ring]
@@ -15,18 +14,6 @@
             [ring.util.response :as response]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))
-
-(def home-html
-  (hiccup/html
-      [:html
-       [:head
-        [:title "XT fiddle"]
-        [:link {:rel "stylesheet" :href "/assets/css/main.css"}]]
-       [:body.block
-        [:div.container
-         [:h1.title "XT fiddle"]
-         #_[:a.button {:href "/draw" :target "_blank"} "Create a new easel!"]
-         [:h2 "Go nuts"]]]]))
 
 (s/def ::txs (s/or :xtql string? :sql vector?))
 (s/def ::query string?)

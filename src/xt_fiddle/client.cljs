@@ -1,13 +1,14 @@
 (ns xt-fiddle.client
   (:require [ajax.core :as ajax]
-            [clojure.string :as str]
             [day8.re-frame.http-fx]
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
             [reagent.core :as r]
             [reagent.dom]
-            [xt-fiddle.editor :as editor]))
+            [xt-fiddle.editor :as editor]
+            ["highlight.js/lib/core" :as hljs]
+            ["highlight.js/lib/languages/clojure" :as hljs-clojure]))
 
 (glogi-console/install!)
 
@@ -66,7 +67,7 @@
                           :type "xtql"}
                  :timeout 3000
                  :format (ajax/json-request-format)
-                 :response-format (ajax/json-response-format)
+                 :response-format (ajax/json-response-format {:keywords? true})
                  :on-success [:success-results]
                  :on-failure [:failure-results]}}))
 
@@ -113,6 +114,18 @@
                              (rf/dispatch [:dropdown-selection :sql]))}
              "SQL"]]]])])))
 
+(defn render-raw-html [html-content]
+  [:div {:dangerouslySetInnerHTML {:__html html-content}}])
+
+(defn highlight-code [code language]
+  [render-raw-html (.-value (hljs/highlight code #js {:language language}))])
+
+(defn display-edn [edn-data]
+  (when edn-data
+    [:div
+     (for [[i row] (map-indexed vector edn-data)]
+       ^{:key i} [highlight-code (pr-str row) "clojure"])]))
+
 (defn app []
   [:div {:class "flex flex-col h-screen"}
    [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between" #_"bg-gray-200 p-4 text-lg font-semibold"}
@@ -133,17 +146,16 @@
     [:div {:class "flex flex-col flex-1 overflow-hidden"}
      [:section {:class "flex flex-1 overflow-auto p-4"}
       [:div {:class "flex-1 bg-white border mr-4 p-4"}
-       [editor/editor "(xt/put :docs {:xt/id 1 :foo \"bar\"})" {:change-callback (fn [txs]
-                                                                                   (log/info :hello "from callback")
-                                                                                   (rf/dispatch [:set-txs txs]))}]]
+       [editor/editor "(xt/put :docs {:xt/id 1 :foo \"bar\"})" {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]]
       [:div {:class "flex-1 bg-white border p-4"}
        [editor/editor "(from :docs [xt/id foo])" {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]]]
      [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1} }
-      (str @(rf/subscribe [:results]))]]]])
+      (display-edn @(rf/subscribe [:results]))]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []
-  (js/console.log "start")
+  (log/info :start "start")
+  (hljs/registerLanguage "clojure" hljs-clojure)
   (rf/dispatch-sync [:app/init])
   (reagent.dom/render [app] (js/document.getElementById "app")))
 
@@ -151,9 +163,9 @@
   ;; init is called ONCE when the page loads
   ;; this is called in the index.html and must be exported
   ;; so it is available even in :advanced release builds
-  (js/console.log "init")
+  (log/info :init "init")
   (start!))
 
 ;; this is called before any code is reloaded
 (defn ^:dev/before-load stop []
-  (js/console.log "stop"))
+  (log/info :stop "stop"))

@@ -19,6 +19,7 @@
     "@lezer/lr": "^1.0.0",
     "@nextjournal/lezer-clojure": "1.0.0",
     "framer-motion": "^6.2.8",
+    "highlight.js": "^11.9.0",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
     "react-scripts": "2.1.1",
