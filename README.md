@@ -1,4 +1,28 @@
-# {project}
+# XT-fiddle
+
+### Development
+
+```sh
+yarn install
+```
+Running the shadow server.
+```sh
+npx shadow-cljs server
+```
+With cider you should now be able to connect a cljs REPL.
+
+With other IDE's you might need to run.
+```sh
+npx shadow-cljs watch app
+```
+
+To start a server you need to run a "normal" Clojure REPL and call
+```clj
+(def server (start {:join false}))
+```
+in the `server` namespace.
+
+### Creating jar (todo)
 
 Executing the program can either be done via
 ```
