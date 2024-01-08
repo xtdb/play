@@ -16,11 +16,17 @@ With other IDE's you might need to run.
 npx shadow-cljs watch app
 ```
 
+In cider `cider-jack-in-clj` and `cider-jack-in-cljs` should also work out of the box, although
+you need to run them seperately, as they use different build tools (cli and shadow respectively).
+
 To start a server you need to run a "normal" Clojure REPL and call
 ```clj
-(def server (start {:join false}))
+(go)
 ```
-in the `server` namespace.
+in the `user` namespace.
+
+You should than be able to browse a dev build at [http://localhost:8000](http://localhost:8000).
+
 
 ### Creating jar (todo)
 

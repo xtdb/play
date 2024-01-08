@@ -2,15 +2,16 @@
   (:require [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [integrant.core :as ig]
             [muuntaja.core :as m]
+            [reitit.coercion.spec :as rcs]
             [reitit.dev.pretty :as pretty]
             [reitit.ring :as ring]
-            [reitit.coercion.spec :as rcs]
             [reitit.ring.coercion :as rrc]
-            [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.exception :as exception]
-            [ring.middleware.params :as params]
+            [reitit.ring.middleware.muuntaja :as muuntaja]
             [ring.adapter.jetty :as jetty]
+            [ring.middleware.params :as params]
             [ring.util.response :as response]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))
@@ -82,9 +83,8 @@
                         rrc/coerce-response-middleware]}}))
 
 (defn start
-  [{:keys [join]}]
-  (let [port 8000
-        server (jetty/run-jetty (ring/ring-handler
+  [{:keys [join port] :or {port 8000}}]
+  (let [server (jetty/run-jetty (ring/ring-handler
                                  (router)
                                  (ring/routes
                                   #_(ring/create-resource-handler {:root "public"})
@@ -92,6 +92,12 @@
                                 {:port port, :join? join})]
     (log/info "server running " "on port " port)
     server))
+
+(defmethod ig/init-key ::server [_ opts]
+  (start opts))
+
+(defmethod ig/halt-key! ::server [_ server]
+  (.stop server))
 
 (comment
   (def server (start {:join false}))
