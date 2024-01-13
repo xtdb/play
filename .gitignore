@@ -11,5 +11,6 @@ resources/public/js
 .store
 out
 .#*
-.clj-kondo/
+.clj-kondo/*
+!.clj-kondo/config.edn
 .lsp
