@@ -4,7 +4,7 @@
             [clojure.java.io :as io]
             [clojure.tools.namespace.repl :as repl]
             [integrant.core :as ig]
-            [integrant.repl :as igr]
+            [integrant.repl :as igr :refer [go halt]]
             [lambdaisland.classpath.watch-deps :as watch-deps]))
 
 (defn browse [port]
@@ -17,10 +17,6 @@
 
 (integrant.repl/set-prep! #(ig/prep {:server/server {:join false :port 8000}}))
 
-(defn go []
-  (watch-deps!)
-  (igr/go))
-
 (comment
   (repl/set-refresh-dirs (io/file "src") (io/file "dev"))
   (repl/refresh)
@@ -29,6 +25,7 @@
   (watch-deps!)
 
   (go)
+  (halt)
   (browse 8000)
 
   )

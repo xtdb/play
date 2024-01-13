@@ -51,15 +51,18 @@
 
 (rf/reg-event-db
  :failure-results
- (fn [db [_ failure]]
+ (fn [db [_ {:keys [response] :as _failure-map}]]
    (-> db
        (dissoc :show-twirly)
-       (assoc :failure failure))))
+       (assoc :failure response))))
 
 (rf/reg-event-fx
  :db-run
  (fn [{:keys [db]} _]
-   {:db (assoc db :show-twirly true)
+   (log/info :txs {:txs (:txs db)})
+   {:db (-> db
+            (assoc :show-twirly true)
+            (dissoc :failure :results))
     :http-xhrio {:method :post
                  :uri "/db-run"
                  :params {:txs (pr-str (str "[" (:txs db) "]"))
@@ -72,9 +75,14 @@
                  :on-failure [:failure-results]}}))
 
 (rf/reg-sub
- :results
+ :twirly?
  (fn [db _]
-   (:results db)))
+   (:show-twirly db)))
+
+(rf/reg-sub
+ :results-or-failure
+ (fn [db _]
+   (select-keys db [:results :failure])))
 
 (defn dropdown []
   (r/with-let [open? (r/atom false)
@@ -130,6 +138,16 @@
 (defn highlight-code [code language]
   [render-raw-html (.-value (hljs/highlight code #js {:language language}))])
 
+(defn spinner []
+  [:div
+   "Loading..."])
+
+(defn display-error [{:keys [exception message data]}]
+  [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-4"}
+   [:p {:class "font-bold"} exception]
+   [:p message]
+   [:p (pr-str data)]])
+
 (defn display-edn [edn-data]
   (when edn-data
     [:div
@@ -159,8 +177,14 @@
        [editor/editor "(xt/put :docs {:xt/id 1 :foo \"bar\"})" {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]]
       [:div {:class "flex-1 bg-white border p-4"}
        [editor/editor "(from :docs [xt/id foo])" {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]]]
-     [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1} }
-      (display-edn @(rf/subscribe [:results]))]]]])
+     [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1}}
+      "Results:"
+      (if @(rf/subscribe [:twirly?])
+        [spinner]
+        (let [{:keys [results failure] :as res} @(rf/subscribe [:results-or-failure])]
+          (if failure
+            [display-error failure]
+            [display-edn results])))]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []

@@ -12,7 +12,7 @@
   metosin/jsonista {:mvn/version "0.3.3"}
   ring/ring-jetty-adapter {:mvn/version "1.7.1"}
   integrant/integrant {:mvn/version "0.8.1"}
-  hiccup/hiccup {:mvn/version "2.0.0-RC2"}
+  org.clojure/core.match {:mvn/version "1.0.1"}
 
   ;; Logging
   ch.qos.logback/logback-classic {:mvn/version "1.4.5"}
@@ -35,7 +35,8 @@
                  com.lambdaisland/classpath  {:mvn/version "0.0.27"}
                  hato/hato                   {:mvn/version "0.9.0"}
                  cheshire/cheshire           {:mvn/version "5.12.0"}
-                 integrant/repl              {:mvn/version "0.3.3"}}
+                 integrant/repl              {:mvn/version "0.3.3"}
+                 vvvvalvalval/scope-capture  {:mvn/version "0.3.3"}}
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
               "-Dio.netty.tryReflectionSetAccessible=true"]}
 

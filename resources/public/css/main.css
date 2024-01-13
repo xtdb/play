@@ -6,3 +6,25 @@
     border-bottom: 8px solid transparent;
     border-left: 12px solid green;
 }
+
+
+@keyframes spinner {
+    to {transform: rotate(360deg);}
+}
+
+.spinner:before {
+    content: '';
+    box-sizing: border-box;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin-top: -10px;
+    margin-left: -10px;
+    border-radius: 50%;
+    border: 2px solid #1ff;
+    border-top-color: #777;
+    -webkit-animation: spinner .6s linear infinite;
+    animation: spinner .6s linear infinite;
+}

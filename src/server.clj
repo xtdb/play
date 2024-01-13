@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [clojure.core.match :refer [match]]
             [integrant.core :as ig]
             [muuntaja.core :as m]
             [reitit.coercion.spec :as rcs]
@@ -13,6 +14,7 @@
             [ring.adapter.jetty :as jetty]
             [ring.middleware.params :as params]
             [ring.util.response :as response]
+            [xtdb.error :as err]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))
 
@@ -26,17 +28,27 @@
   {:status 400,
    :body {:message (ex-message ex)
           :exception (.getClass ex)
-          ;; :data (ex-data exception)
+          :data (ex-data ex)
           :uri (:uri req)}})
 
 (def exception-middleware
   (exception/create-exception-middleware
    (merge
     exception/default-handlers
-    {xtdb.IllegalArgumentException handle-ex-info})))
+    {xtdb.IllegalArgumentException handle-ex-info
+     xtdb.RuntimeException handle-ex-info})))
 
 (defn eval-txs [txs]
-  (mapv (fn [[_op-symbol table doc]] (xt/put table doc)) txs))
+  (mapv #(match (vec %)
+           ['xt/put table doc] (xt/put table doc)
+           ['xt/delete table id] (xt/delete table id)
+           ['xt/erase table id] (xt/erase table id)
+           ['xt/sql-op sql] (xt/sql-op sql)
+           ['xt/put-fn name fn] (xt/put-fn name fn)
+           ['xt/call fn & args] (xt/call fn args)
+           :else (throw (err/illegal-arg :illegal-or-unknown-op {::err/message "Unknown or unsupported tx operation!"
+                                                                 :op (pr-str %)})))
+        txs))
 
 (defn router
   []
@@ -67,8 +79,7 @@
                                  :body res}))
                             (catch Exception e
                               (log/warn :submit-error {:e e})
-                              {:status 400
-                               :body e}))))}}]
+                              (throw e)))))}}]
     ;; TODO put static resources under path without conflicts
     ["/*" (ring/create-resource-handler)]]
    {:conflicts (constantly nil)
