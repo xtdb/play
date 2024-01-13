@@ -77,42 +77,52 @@
    (:results db)))
 
 (defn dropdown []
-  (let [open? (r/atom false)]
-    (fn []
-      [:div {:class "relative inline-block text-left"}
-       [:button {:type "button"
-                 :class "inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
-                 :id "dropdownDefault"
-                 :data-dropdown-toggle "dropdown"
-                 :on-click #(swap! open? not)}
-        (if (= :xtql @(rf/subscribe [:selection]))
-          "XTQL"
-          "SQL")
-        [:svg {:class"w-4 h-4 ml-2"
-               :xmlns "http://www.w3.org/2000/svg"
-               :fill "none"
-               :viewBox "0 0 24 24"
-               :stroke "currentColor"
-               :aria-hidden "true"}
-         [:path
-          {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2" :d "M19 9l-7 7-7-7"}]]]
+  (r/with-let [open? (r/atom false)
+               click-handler (fn [event]
+                               (log/info :event "foo")
+                               (let [dropdown-elem (js/document.querySelector "#language-dropdown")]
+                                 (when (not (.contains dropdown-elem (.-target event)))
+                                   (reset! open? false))))
+               _ (js/window.addEventListener "click" click-handler)]
+    [:div {:class "relative inline-block text-left"}
+     [:button {:type "button"
+               :class "inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+               :id "language-dropdown"
+               :data-dropdown-toggle "dropdown"
+               :on-change #(reset! open? false)
+               :on-click #(swap! open? not)}
+      (if (= :xtql @(rf/subscribe [:selection]))
+        "XTQL"
+        "SQL")
+      [:svg {:class"w-4 h-4 ml-2"
+             :xmlns "http://www.w3.org/2000/svg"
+             :fill "none"
+             :viewBox "0 0 24 24"
+             :stroke "currentColor"
+             :aria-hidden "true"}
+       [:path
+        {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2" :d "M19 9l-7 7-7-7"}]]]
 
-       (when @open?
-         [:div {:class "z-10 absolute w-44 bg-white rounded divide-y divide-gray-100 shadow dark:bg-gray-700" :id "dropdown"}
-          [:ul {:class "py-1 text-sm text-gray-700 dark:text-gray-200" :aria-labelledby "dropdownDefault"}
-           [:li
-            [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                 :on-click (fn [event]
-                             (.preventDefault event)
-                             (rf/dispatch [:dropdown-selection :xtql]))}
-             "XTQL"]]
-           ;; TODO actually implement editor
-           [:li
-            [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                 :on-click (fn [event]
-                             (.preventDefault event)
-                             (rf/dispatch [:dropdown-selection :sql]))}
-             "SQL"]]]])])))
+     (when @open?
+       [:div {:class "z-10 absolute w-44 bg-white rounded divide-y divide-gray-100 shadow dark:bg-gray-700" :id "dropdown"}
+        [:ul {:class "py-1 text-sm text-gray-700 dark:text-gray-200" :aria-labelledby "dropdownDefault"}
+         [:li
+          [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+               :on-click (fn [event]
+                           (.preventDefault event)
+                           (rf/dispatch [:dropdown-selection :xtql])
+                           (reset! open? false))}
+           "XTQL"]]
+         ;; TODO actually implement editor
+         [:li
+          [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+               :on-click (fn [event]
+                           (.preventDefault event)
+                           (rf/dispatch [:dropdown-selection :sql])
+                           (reset! open? false))}
+           "SQL"]]]])]
+    (finally
+      (js/window.removeEventListener "click" click-handler))))
 
 (defn render-raw-html [html-content]
   [:div {:dangerouslySetInnerHTML {:__html html-content}}])
@@ -128,7 +138,7 @@
 
 (defn app []
   [:div {:class "flex flex-col h-screen"}
-   [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between" #_"bg-gray-200 p-4 text-lg font-semibold"}
+   [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between"}
     [:div {:class "flex items-center space-x-4"}
 
      [:h2 "XT fiddle"]
