@@ -1,7 +1,8 @@
 (ns xt-fiddle.editor
-  (:require ["@codemirror/commands" :refer [history historyKeymap]]
+  (:require ["@codemirror/autocomplete" :refer [autocompletion]]
+            ["@codemirror/commands" :refer [history historyKeymap]]
             ["@codemirror/language" :refer [foldGutter syntaxHighlighting defaultHighlightStyle]]
-            ["@codemirror/lang-javascript" :refer [javascript]]
+            ["@codemirror/lang-sql" :as sql :refer [PostgreSQL StandardSQL keywordCompletionSource]]
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :as view :refer [EditorView]]
             ["react" :as react]
@@ -41,24 +42,51 @@
                                          (callback (.. update -state -doc toString))))))
 
 
-(defonce extensions #js [theme
+(defonce clj-extensions #js [theme
+                             (history)
+                             (syntaxHighlighting defaultHighlightStyle)
+                             (view/drawSelection)
+                             (foldGutter)
+                             (.. EditorState -allowMultipleSelections (of true))
+                             cm-clj/default-extensions
+                             (.of view/keymap cm-clj/complete-keymap)
+                             (.of view/keymap historyKeymap)])
+
+(def sql-extensions #js [theme
                          (history)
                          (syntaxHighlighting defaultHighlightStyle)
                          (view/drawSelection)
                          (foldGutter)
                          (.. EditorState -allowMultipleSelections (of true))
-                         cm-clj/default-extensions
-                         (.of view/keymap cm-clj/complete-keymap)
-                         (.of view/keymap historyKeymap)])
+                         (.of view/keymap historyKeymap)
+                         StandardSQL
+                         (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
+                         #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
 
 
-(defn editor [source {:keys [change-callback]}]
+
+(defn clj-editor [source {:keys [change-callback]}]
   (r/with-let [!view (r/atom nil)
                mount! (fn [el]
                         (when el
                           (reset! !view (new EditorView
                                              (j/obj :state
-                                                    (test-utils/make-state #js [extensions (on-change change-callback)] source)
+                                                    (test-utils/make-state #js [clj-extensions (on-change change-callback)] source)
+                                                    :parent el)))))]
+    [:div
+     [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"
+            :ref mount!
+            :style {:max-height 410}}]]
+    (finally
+      (j/call @!view :destroy))))
+
+(defn sql-editor [source {:keys [change-callback]}]
+  (r/with-let [!view (r/atom nil)
+               mount! (fn [el]
+                        (when el
+                          (reset! !view (new EditorView
+                                             (j/obj :state
+                                                    (test-utils/make-state #js [sql-extensions (on-change change-callback)] source)
                                                     :parent el)))))]
     [:div
      [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"

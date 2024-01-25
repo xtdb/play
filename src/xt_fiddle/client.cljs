@@ -20,7 +20,7 @@
 (rf/reg-event-db
  :app/init
  (fn [_ _]
-   {:type :xtql}))
+   {:type #_:xtql :sql}))
 
 (rf/reg-event-db
  :dropdown-selection
@@ -38,7 +38,7 @@
    (assoc db :query query)))
 
 (rf/reg-sub
- :selection
+ :get-type
  (fn [db _]
    (:type db)))
 
@@ -99,7 +99,7 @@
                :data-dropdown-toggle "dropdown"
                :on-change #(reset! open? false)
                :on-click #(swap! open? not)}
-      (if (= :xtql @(rf/subscribe [:selection]))
+      (if (= :xtql @(rf/subscribe [:get-type]))
         "XTQL"
         "SQL")
       [:svg {:class"w-4 h-4 ml-2"
@@ -154,6 +154,12 @@
      (for [[i row] (map-indexed vector edn-data)]
        ^{:key i} [highlight-code (pr-str row) "clojure"])]))
 
+(def default-dml "(xt/put :docs {:xt/id 1 :foo \"bar\"})")
+(def default-xtql-query "(from :docs [xt/id foo])")
+
+(def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
+(def default-sql-query "SELECT docs.xt$id, docs.name FROM docs")
+
 (defn app []
   [:div {:class "flex flex-col h-screen"}
    [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between"}
@@ -174,9 +180,13 @@
     [:div {:class "flex flex-col flex-1 overflow-hidden"}
      [:section {:class "flex flex-1 overflow-auto p-4"}
       [:div {:class "flex-1 bg-white border mr-4 p-4"}
-       [editor/editor "(xt/put :docs {:xt/id 1 :foo \"bar\"})" {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]]
+       (if (= :xtql @(rf/subscribe [:get-type]))
+         [editor/clj-editor default-dml {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
+         [editor/sql-editor default-sql-insert {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}])]
       [:div {:class "flex-1 bg-white border p-4"}
-       [editor/editor "(from :docs [xt/id foo])" {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]]]
+       (if (= :xtql @(rf/subscribe [:get-type]))
+         [editor/clj-editor default-xtql-query {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
+         [editor/sql-editor default-sql-query {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}])]]
      [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1}}
       "Results:"
       (if @(rf/subscribe [:twirly?])
