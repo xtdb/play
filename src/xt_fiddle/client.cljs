@@ -163,10 +163,14 @@
    "Loading..."])
 
 (defn display-error [{:keys [exception message data]}]
-  [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-4"}
-   [:p {:class "font-bold"} exception]
-   [:p message]
-   [:p (pr-str data)]])
+  [:div {:class "flex flex-col gap-2"}
+   (when (= "xtdb.sql/parse-error" (:xtdb.error/error-key data))
+     [:div {:class "bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4"}
+      "Are you missing a ';' between statements?"])
+   [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-4"}
+    [:p {:class "font-bold"} exception]
+    [:p message]
+    [:p (pr-str data)]]])
 
 (defn display-edn [edn-data]
   (when edn-data
