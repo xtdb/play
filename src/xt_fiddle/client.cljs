@@ -14,9 +14,8 @@
 (glogi-console/install!)
 
 (log/set-levels
- {:glogi/root   :info    ;; Set a root logger level, this will be inherited by all loggers
-  ;; 'my.app.thing :trace   ;; Some namespaces you might want detailed logging
-  })
+ {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
+  ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
 (rf/reg-event-db
  :app/init

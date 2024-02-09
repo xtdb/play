@@ -44,7 +44,8 @@
    [["/"
      {:get {:summary "Fetch main page"
             :handler (fn [_request]
-                       (response/content-type (response/resource-response "public/index.html") "text/html"))}}]
+                       (-> (response/resource-response "public/index.html")
+                           (response/content-type "text/html")))}}]
 
     ["/db-run"
      {:post {:summary "Run transactions + a query"
@@ -115,8 +116,7 @@
                        :content-type :json
                        :form-params {:txs txs :query query :type "xtql"}
                        :url "http://localhost:8000/db-run"
-                       :throw-exceptions? false} {}
-                      )
+                       :throw-exceptions? false} {})
       :body)
   ;; => "[{\"foo\":\"bar\",\"xt/id\":1}]"
 
@@ -130,8 +130,7 @@
                        :content-type :json
                        :form-params {:txs txs :query query :type "sql"}
                        :url "http://localhost:8000/db-run"
-                       :throw-exceptions? false} {}
-                      )
-      :body)
+                       :throw-exceptions? false} {})
+      :body))
 
-  )
+  
