@@ -17,10 +17,30 @@
  {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
   ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
-(rf/reg-event-db
+(defn get-query-params []
+  (->> (js/URLSearchParams. (.-search js/window.location))
+       (map js->clj)
+       (into {})))
+
+(rf/reg-cofx :query-params
+  (fn [cofx _]
+    (assoc cofx :query-params (get-query-params))))
+
+(rf/reg-event-fx
  :app/init
- (fn [_ _]
-   {:type #_:xtql :sql}))
+ [(rf/inject-cofx :query-params)]
+ (fn [{:keys [_db query-params]} _]
+   (log/info :query-params query-params)
+   (let [type (keyword (get query-params "type" "sql"))
+         txs (get query-params "txs")
+         query (get query-params "query")]
+     {:db (merge {:type type}
+                 ;; If either is set, don't use the built in default
+                 ;; TODO: use base64 encoding to avoid URL encoding issues
+                 (when (or txs query)
+                   {:txs (or txs "")
+                    :query (or query "")}))})))
+
 
 (rf/reg-event-db
  :dropdown-selection
@@ -62,6 +82,16 @@
  :get-type
  (fn [db _]
    (:type db)))
+
+(rf/reg-sub
+ :txs
+ (fn [db _]
+   (:txs db)))
+
+(rf/reg-sub
+ :query
+ (fn [db _]
+   (:query db)))
 
 (rf/reg-event-db
  :success-results
@@ -206,12 +236,16 @@
      [:section {:class "flex flex-1 overflow-auto p-4"}
       [:div {:class "flex-1 bg-white border mr-4 p-4"}
        (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor default-dml {:change-callback (fn [txs] (rf/dispatch [:set-xtql-txs txs]))}]
-         [editor/sql-editor default-sql-insert {:change-callback (fn [txs] (rf/dispatch [:set-sql-txs txs]))}])]
+         [editor/clj-editor (or @(rf/subscribe [:txs]) default-dml)
+          {:change-callback (fn [txs] (rf/dispatch [:set-xtql-txs txs]))}]
+         [editor/sql-editor (or @(rf/subscribe [:txs]) default-sql-insert)
+          {:change-callback (fn [txs] (rf/dispatch [:set-sql-txs txs]))}])]
       [:div {:class "flex-1 bg-white border p-4"}
        (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor default-xtql-query {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
-         [editor/sql-editor default-sql-query {:change-callback  (fn [query] (rf/dispatch [:set-sql-query query]))}])]]
+         [editor/clj-editor (or @(rf/subscribe [:query]) default-xtql-query)
+          {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
+         [editor/sql-editor (or @(rf/subscribe [:query]) default-sql-query)
+          {:change-callback  (fn [query] (rf/dispatch [:set-sql-query query]))}])]]
      [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1}}
       "Results:"
       (if @(rf/subscribe [:twirly?])
