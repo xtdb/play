@@ -1,5 +1,6 @@
 (ns xt-fiddle.client
-  (:require [ajax.core :as ajax]
+  (:require [clojure.string :as str]
+            [ajax.core :as ajax]
             [day8.re-frame.http-fx]
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
@@ -32,10 +33,30 @@
  (fn [db [_ txs]]
    (assoc db :txs txs)))
 
+(rf/reg-event-fx
+ :set-xtql-txs
+ (fn [_ [_ txs]]
+   {:dispatch [:set-txs (str "[" txs "]")]}))
+
+(rf/reg-event-fx
+ :set-sql-txs
+ (fn [_ [_ txs]]
+   {:dispatch [:set-txs (str "["
+                             (str/join " "
+                               (->> (str/split txs #";")
+                                    (map str/trim)
+                                    (map #(str [:sql %]))))
+                             "]")]}))
+
 (rf/reg-event-db
  :set-query
  (fn [db [_ query]]
    (assoc db :query query)))
+
+(rf/reg-event-db
+ :set-sql-query
+ (fn [db [_ query]]
+   (assoc db :query (pr-str query))))
 
 (rf/reg-sub
  :get-type
@@ -65,7 +86,7 @@
             (dissoc :failure :results))
     :http-xhrio {:method :post
                  :uri "/db-run"
-                 :params {:txs (str "[" (:txs db) "]")
+                 :params {:txs (:txs db)
                           :query (:query db)
                           :type "xtql"}
                  :timeout 3000
@@ -154,7 +175,7 @@
      (for [[i row] (map-indexed vector edn-data)]
        ^{:key i} [highlight-code (pr-str row) "clojure"])]))
 
-(def default-dml "(xt/put :docs {:xt/id 1 :foo \"bar\"})")
+(def default-dml "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]")
 (def default-xtql-query "(from :docs [xt/id foo])")
 
 (def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
@@ -181,12 +202,12 @@
      [:section {:class "flex flex-1 overflow-auto p-4"}
       [:div {:class "flex-1 bg-white border mr-4 p-4"}
        (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor default-dml {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
-         [editor/sql-editor default-sql-insert {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}])]
+         [editor/clj-editor default-dml {:change-callback (fn [txs] (rf/dispatch [:set-xtql-txs txs]))}]
+         [editor/sql-editor default-sql-insert {:change-callback (fn [txs] (rf/dispatch [:set-sql-txs txs]))}])]
       [:div {:class "flex-1 bg-white border p-4"}
        (if (= :xtql @(rf/subscribe [:get-type]))
          [editor/clj-editor default-xtql-query {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
-         [editor/sql-editor default-sql-query {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}])]]
+         [editor/sql-editor default-sql-query {:change-callback  (fn [query] (rf/dispatch [:set-sql-query query]))}])]]
      [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1}}
       "Results:"
       (if @(rf/subscribe [:twirly?])

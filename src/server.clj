@@ -38,18 +38,6 @@
     {xtdb.IllegalArgumentException handle-ex-info
      xtdb.RuntimeException handle-ex-info})))
 
-(defn eval-txs [txs]
-  (mapv #(match (vec %)
-           ['xt/put table doc] (xt/put table doc)
-           ['xt/delete table id] (xt/delete table id)
-           ['xt/erase table id] (xt/erase table id)
-           ['xt/sql-op sql] (xt/sql-op sql)
-           ['xt/put-fn name fn] (xt/put-fn name fn)
-           ['xt/call fn & args] (xt/call fn args)
-           :else (throw (err/illegal-arg :illegal-or-unknown-op {::err/message "Unknown or unsupported tx operation!"
-                                                                 :op (pr-str %)})))
-        txs))
-
 (defn router
   []
   (ring/router
@@ -62,13 +50,9 @@
      {:post {:summary "Run transactions + a query"
              :parameters {:body ::db-run}
              :handler (fn [request]
-                        (let [{:keys [txs query type] :as body} (get-in request [:parameters :body])
-                              [txs query] (case type
-                                            "xtql" [(eval-txs (edn/read-string txs))
-                                                    (edn/read-string query)]
-                                            "sql" [(mapv #(xt/sql-op %) txs)
-                                                   query]
-                                            (UnsupportedOperationException.))]
+                        (let [{:keys [txs query] :as body} (get-in request [:parameters :body])
+                              txs (edn/read-string txs)
+                              query (edn/read-string query)]
                           #_(log/info :requst-data {:txs txs :query query :type type})
                           (try
                             (with-open [node (xtn/start-node {})]
