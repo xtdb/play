@@ -44,6 +44,7 @@
                              (str/join " "
                                (->> (str/split txs #";")
                                     (map str/trim)
+                                    (remove str/blank?)
                                     (map #(str [:sql %]))))
                              "]")]}))
 
