@@ -14,3 +14,5 @@ out
 .clj-kondo/*
 !.clj-kondo/config.edn
 .lsp
+
+.yarn/*
