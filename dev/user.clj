@@ -17,6 +17,8 @@
 
 (integrant.repl/set-prep! #(ig/prep {:server/server {:join false :port 8000}}))
 
+(def go! go)
+
 (comment
   (repl/set-refresh-dirs (io/file "src") (io/file "dev"))
   (repl/refresh)
