@@ -63,9 +63,8 @@
              :parameters {:body ::db-run}
              :handler (fn [request]
                         (let [{:keys [txs query type] :as body} (get-in request [:parameters :body])
-                              ;; TODO take out eval and double encoding
                               [txs query] (case type
-                                            "xtql" [(eval-txs (edn/read-string (edn/read-string txs)))
+                                            "xtql" [(eval-txs (edn/read-string txs))
                                                     (edn/read-string query)]
                                             "sql" [(mapv #(xt/sql-op %) txs)
                                                    query]

@@ -65,7 +65,7 @@
             (dissoc :failure :results))
     :http-xhrio {:method :post
                  :uri "/db-run"
-                 :params {:txs (pr-str (str "[" (:txs db) "]"))
+                 :params {:txs (str "[" (:txs db) "]")
                           :query (:query db)
                           :type "xtql"}
                  :timeout 3000
