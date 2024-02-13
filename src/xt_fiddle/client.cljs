@@ -42,7 +42,7 @@
     :sql (->> (re-seq #"\[:sql \"(.*?)\"\]" s)
               (map second)
               (str/join ";\n"))
-    :xtql (strip-surrounding s)))
+    :xtql s))
 
 (defn decode-query [s q-type]
   (case q-type
@@ -55,22 +55,56 @@
   (fn [{:keys [_db query-params]} _]
     (let [q-type (keyword (get query-params "type" "sql"))
           boilerplate-url (get query-params "boilerplate_url")]
-      {:db (merge {:type q-type
+      (merge {:db {:type q-type
+                   :app/loading true
                    :boilerplate-url boilerplate-url
                    :txs (some-> (get query-params "txs")
                                 js/atob
                                 (decode-txs q-type))
                    :query (some-> (get query-params "query")
                                   js/atob
-                                  (decode-query q-type))})})))
+                                  (decode-query q-type))}}
+             (when boilerplate-url
+               {:dispatch [:fetch-boilerplate boilerplate-url]})))))
+
+(rf/reg-event-db
+  :boilerplate-success
+  (fn [db [_ results]]
+    (-> db
+        (dissoc :show-twirly)
+        (assoc :boilerplate results))))
+
+;; TODO: do this
+(rf/reg-event-db
+  :boilerplate-failure
+  (fn [db [_ response]]
+    (-> db
+        (dissoc :show-twirly)
+        (assoc :failure response))))
+
+(rf/reg-event-fx
+  :fetch-boilerplate
+  (fn [{:keys [db]} [_ boilerplate-url]]
+    ;; TODO: Change to different swirly
+    {:db (-> db
+             (assoc :app/loading false)
+             (dissoc :failure :results))
+     :http-xhrio {:method :get
+                  :uri boilerplate-url
+                  :timeout 3000
+                  :response-format (ajax/text-response-format)
+                  :on-success [:boilerplate-success]
+                  :on-failure [:boilerplate-failure]}}))
 
 (rf/reg-event-fx
   :share
   (fn [{:keys [db]}]
     {:set-query-params
-     {:type (name (:type db))
-      :txs (js/btoa (:txs db))
-      :query (js/btoa (:query db))}}))
+     (merge {:type (name (:type db))
+             :txs (js/btoa (:txs db))
+             :query (js/btoa (:query db))}
+            (when-let [boilerplate-url (:boilerplate-url db)]
+              {:boilerplate_url boilerplate-url}))}))
 
 (rf/reg-event-db
   :dropdown-selection
@@ -87,19 +121,16 @@
 (rf/reg-event-fx
   :set-xtql-txs
   (fn [_ [_ txs]]
-    {:dispatch [:set-txs (str "[" txs "]")]}))
+    {:dispatch [:set-txs txs]}))
 
 (rf/reg-event-fx
   :set-sql-txs
   (fn [_ [_ txs]]
-    {:dispatch [:set-txs (str "["
-                              (str/join " "
-                                        (->> (str/split txs #";")
-                                             (map str/trim)
-                                             (remove str/blank?)
-                                             (map #(str [:sql %]))))
-                              "]")]}))
-
+    {:dispatch [:set-txs (->> (str/split txs #";")
+                              (map str/trim)
+                              (remove str/blank?)
+                              (map #(str [:sql %]))
+                              (str/join " "))]}))
 (rf/reg-event-db
   :set-query
   (fn [db [_ query]]
@@ -125,6 +156,15 @@
   (fn [db _]
     (:query db)))
 
+(rf/reg-sub
+  :boilerplate-url
+  (fn [db _]
+    (:boilerplate-url db)))
+
+(rf/reg-sub
+  :app/loading
+  :-> :app/loading)
+
 (rf/reg-event-db
   :success-results
   (fn [db [_ results]]
@@ -143,19 +183,20 @@
   :db-run
   (fn [{:keys [db]} _]
     (log/info :txs {:txs (:txs db)})
-    {:db (-> db
-             (assoc :show-twirly true)
-             (dissoc :failure :results))
-     :http-xhrio {:method :post
-                  :uri "/db-run"
-                  :params {:txs (:txs db)
-                           :query (:query db)
-                           :type "xtql"}
-                  :timeout 3000
-                  :format (ajax/json-request-format)
-                  :response-format (ajax/json-response-format {:keywords? true})
-                  :on-success [:success-results]
-                  :on-failure [:failure-results]}}))
+    (when-not (:app/loading db)
+      {:db (-> db
+               (assoc :show-twirly true)
+               (dissoc :failure :results))
+       :http-xhrio {:method :post
+                    :uri "/db-run"
+                    :params {:txs (str "[" (:boilerplate db) (:txs db) "]")
+                             :query (:query db)
+                             :type "xtql"}
+                    :timeout 3000
+                    :format (ajax/json-request-format)
+                    :response-format (ajax/json-response-format {:keywords? true})
+                    :on-success [:success-results]
+                    :on-failure [:failure-results]}})))
 
 (rf/reg-sub
   :twirly?
@@ -247,8 +288,14 @@
 (def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
 (def default-sql-query "SELECT docs.xt$id, docs.name FROM docs")
 
+(defn page-spinner []
+  [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
+   "Loading..."])
+
 (defn app []
   [:div {:class "flex flex-col h-screen"}
+   (when @(rf/subscribe [:app/loading])
+     [page-spinner])
    [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between"}
     [:div {:class "flex items-center space-x-4"}
 
@@ -264,7 +311,14 @@
                             (rf/dispatch [:share]))}
       "Share!"]
 
-     [dropdown]]]
+     [dropdown]
+     (when-let [boilerplate-url @(rf/subscribe [:boilerplate-url])]
+       [:p
+        "With data from "
+        [:a {:class "underline"
+             :href boilerplate-url
+             :target "_blank"}
+         "here"]])]]
 
    [:div {:class "flex flex-1 overflow-hidden"}
     [:aside {:class "w-64 bg-gray-100 p-4 overflow-auto"}
@@ -274,7 +328,7 @@
       [:div {:class "flex-1 bg-white border mr-4 p-4"}
        (if (= :xtql @(rf/subscribe [:get-type]))
          [editor/clj-editor (or @(rf/subscribe [:txs]) default-dml)
-          {:change-callback (fn [txs] (rf/dispatch [:set-xtql-txs txs]))}]
+          {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
          [editor/sql-editor (or @(rf/subscribe [:txs]) default-sql-insert)
           {:change-callback (fn [txs] (rf/dispatch [:set-sql-txs txs]))}])]
       [:div {:class "flex-1 bg-white border p-4"}
