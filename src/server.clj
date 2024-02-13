@@ -18,8 +18,8 @@
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))
 
-(s/def ::txs (s/or :xtql string? :sql vector?))
-(s/def ::query string?)
+(s/def ::txs string?) ; Always EDN
+(s/def ::query string?) ; Either XTQL or SQL
 (s/def ::type string?)
 (s/def ::db-run (s/keys :req-un [::txs ::query ::type]))
 
