@@ -52,8 +52,9 @@
              :parameters {:body ::db-run}
              :handler (fn [request]
                         (let [{:keys [txs query] :as body} (get-in request [:parameters :body])
-                              txs (edn/read-string txs)
-                              query (edn/read-string query)]
+                              ;; TODO: Filter for only the reader required?
+                              txs (edn/read-string {:readers *data-readers*} txs)
+                              query (edn/read-string {:readers *data-readers*} query)]
                           #_(log/info :requst-data {:txs txs :query query :type type})
                           (try
                             (with-open [node (xtn/start-node {})]
