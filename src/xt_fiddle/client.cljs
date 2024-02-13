@@ -37,33 +37,32 @@
 (defn strip-surrounding [s]
   (subs s 1 (dec (count s))))
 
-(defn decode-sql-txs [s]
-  (log/info :s (string? s))
-  (->> (re-seq #"\[:sql \"(.*?)\"\]" s)
-       (map second)))
+(defn decode-txs [s q-type]
+  (case q-type
+    :sql (->> (re-seq #"\[:sql \"(.*?)\"\]" s)
+              (map second)
+              (str/join ";\n"))
+    :xtql (strip-surrounding s)))
+
+(defn decode-query [s q-type]
+  (case q-type
+    :sql (strip-surrounding s)
+    :xtql s))
 
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx :query-params)]
   (fn [{:keys [_db query-params]} _]
-    (let [type (keyword (get query-params "type" "sql"))
-          txs (get query-params "txs")
-          query (get query-params "query")]
-      {:db (merge {:type type}
-                  ;; If either is set, don't use the built in default
-                  ;; TODO: use base64 encoding to avoid URL encoding issues
-                  (when (or txs query)
-                    {:txs
-                     (let [s (js/atob (or txs ""))]
-                       (case type
-                         :sql (->> (decode-sql-txs s)
-                                   (str/join ";\n"))
-                         :xtql (strip-surrounding s)))
-                     :query
-                     (let [s (js/atob (or query ""))]
-                       (case type
-                         :sql (strip-surrounding s)
-                         :xtql s))}))})))
+    (let [q-type (keyword (get query-params "type" "sql"))
+          boilerplate-url (get query-params "boilerplate_url")]
+      {:db (merge {:type q-type
+                   :boilerplate-url boilerplate-url
+                   :txs (some-> (get query-params "txs")
+                                js/atob
+                                (decode-txs q-type))
+                   :query (some-> (get query-params "query")
+                                  js/atob
+                                  (decode-query q-type))})})))
 
 (rf/reg-event-fx
   :share
