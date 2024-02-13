@@ -26,6 +26,22 @@
   (fn [cofx _]
     (assoc cofx :query-params (get-query-params))))
 
+(defn set-query-params [params]
+  (let [search-params (js/URLSearchParams.)]
+    (doseq [[k v] params]
+      (.set search-params (name k) (str v)))
+    (set! (.-search js/window.location) (.toString search-params))))
+
+(rf/reg-fx :set-query-params set-query-params)
+
+(defn strip-surrounding [s]
+  (subs s 1 (dec (count s))))
+
+(defn decode-sql-txs [s]
+  (log/info :s (string? s))
+  (->> (re-seq #"\[:sql \"(.*?)\"\]" s)
+       (map second)))
+
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx :query-params)]
@@ -37,9 +53,25 @@
                   ;; If either is set, don't use the built in default
                   ;; TODO: use base64 encoding to avoid URL encoding issues
                   (when (or txs query)
-                    {:txs (or txs "")
-                     :query (or query "")}))})))
+                    {:txs
+                     (let [s (js/atob (or txs ""))]
+                       (case type
+                         :sql (->> (decode-sql-txs s)
+                                   (str/join ";\n"))
+                         :xtql (strip-surrounding s)))
+                     :query
+                     (let [s (js/atob (or query ""))]
+                       (case type
+                         :sql (strip-surrounding s)
+                         :xtql s))}))})))
 
+(rf/reg-event-fx
+  :share
+  (fn [{:keys [db]}]
+    {:set-query-params
+     {:type (name (:type db))
+      :txs (js/btoa (:txs db))
+      :query (js/btoa (:query db))}}))
 
 (rf/reg-event-db
   :dropdown-selection
@@ -227,6 +259,11 @@
                             (.preventDefault event)
                             (rf/dispatch [:db-run]))}
       "Run"]
+     [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                :on-click (fn [event]
+                            (.preventDefault event)
+                            (rf/dispatch [:share]))}
+      "Share!"]
 
      [dropdown]]]
 
