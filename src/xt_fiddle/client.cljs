@@ -27,113 +27,114 @@
     (assoc cofx :query-params (get-query-params))))
 
 (rf/reg-event-fx
- :app/init
- [(rf/inject-cofx :query-params)]
- (fn [{:keys [_db query-params]} _]
-   (log/info :query-params query-params)
-   (let [type (keyword (get query-params "type" "sql"))
-         txs (get query-params "txs")
-         query (get query-params "query")]
-     {:db (merge {:type type}
-                 ;; If either is set, don't use the built in default
-                 ;; TODO: use base64 encoding to avoid URL encoding issues
-                 (when (or txs query)
-                   {:txs (or txs "")
-                    :query (or query "")}))})))
+  :app/init
+  [(rf/inject-cofx :query-params)]
+  (fn [{:keys [_db query-params]} _]
+    (let [type (keyword (get query-params "type" "sql"))
+          txs (get query-params "txs")
+          query (get query-params "query")]
+      {:db (merge {:type type}
+                  ;; If either is set, don't use the built in default
+                  ;; TODO: use base64 encoding to avoid URL encoding issues
+                  (when (or txs query)
+                    {:txs (or txs "")
+                     :query (or query "")}))})))
 
 
 (rf/reg-event-db
- :dropdown-selection
- (fn [db [_ selection]]
-   (assoc db :type selection)))
+  :dropdown-selection
+  (fn [db [_ selection]]
+    (-> db
+        (assoc :type selection)
+        (dissoc :txs :query))))
 
 (rf/reg-event-db
- :set-txs
- (fn [db [_ txs]]
-   (assoc db :txs txs)))
+  :set-txs
+  (fn [db [_ txs]]
+    (assoc db :txs txs)))
 
 (rf/reg-event-fx
- :set-xtql-txs
- (fn [_ [_ txs]]
-   {:dispatch [:set-txs (str "[" txs "]")]}))
+  :set-xtql-txs
+  (fn [_ [_ txs]]
+    {:dispatch [:set-txs (str "[" txs "]")]}))
 
 (rf/reg-event-fx
- :set-sql-txs
- (fn [_ [_ txs]]
-   {:dispatch [:set-txs (str "["
-                             (str/join " "
-                               (->> (str/split txs #";")
-                                    (map str/trim)
-                                    (remove str/blank?)
-                                    (map #(str [:sql %]))))
-                             "]")]}))
+  :set-sql-txs
+  (fn [_ [_ txs]]
+    {:dispatch [:set-txs (str "["
+                              (str/join " "
+                                        (->> (str/split txs #";")
+                                             (map str/trim)
+                                             (remove str/blank?)
+                                             (map #(str [:sql %]))))
+                              "]")]}))
 
 (rf/reg-event-db
- :set-query
- (fn [db [_ query]]
-   (assoc db :query query)))
+  :set-query
+  (fn [db [_ query]]
+    (assoc db :query query)))
 
 (rf/reg-event-db
- :set-sql-query
- (fn [db [_ query]]
-   (assoc db :query (pr-str query))))
+  :set-sql-query
+  (fn [db [_ query]]
+    (assoc db :query (pr-str query))))
 
 (rf/reg-sub
- :get-type
- (fn [db _]
-   (:type db)))
+  :get-type
+  (fn [db _]
+    (:type db)))
 
 (rf/reg-sub
- :txs
- (fn [db _]
-   (:txs db)))
+  :txs
+  (fn [db _]
+    (:txs db)))
 
 (rf/reg-sub
- :query
- (fn [db _]
-   (:query db)))
+  :query
+  (fn [db _]
+    (:query db)))
 
 (rf/reg-event-db
- :success-results
- (fn [db [_ results]]
-   (-> db
-       (dissoc :show-twirly)
-       (assoc :results results))))
+  :success-results
+  (fn [db [_ results]]
+    (-> db
+        (dissoc :show-twirly)
+        (assoc :results results))))
 
 (rf/reg-event-db
- :failure-results
- (fn [db [_ {:keys [response] :as _failure-map}]]
-   (-> db
-       (dissoc :show-twirly)
-       (assoc :failure response))))
+  :failure-results
+  (fn [db [_ {:keys [response] :as _failure-map}]]
+    (-> db
+        (dissoc :show-twirly)
+        (assoc :failure response))))
 
 (rf/reg-event-fx
- :db-run
- (fn [{:keys [db]} _]
-   (log/info :txs {:txs (:txs db)})
-   {:db (-> db
-            (assoc :show-twirly true)
-            (dissoc :failure :results))
-    :http-xhrio {:method :post
-                 :uri "/db-run"
-                 :params {:txs (:txs db)
-                          :query (:query db)
-                          :type "xtql"}
-                 :timeout 3000
-                 :format (ajax/json-request-format)
-                 :response-format (ajax/json-response-format {:keywords? true})
-                 :on-success [:success-results]
-                 :on-failure [:failure-results]}}))
+  :db-run
+  (fn [{:keys [db]} _]
+    (log/info :txs {:txs (:txs db)})
+    {:db (-> db
+             (assoc :show-twirly true)
+             (dissoc :failure :results))
+     :http-xhrio {:method :post
+                  :uri "/db-run"
+                  :params {:txs (:txs db)
+                           :query (:query db)
+                           :type "xtql"}
+                  :timeout 3000
+                  :format (ajax/json-request-format)
+                  :response-format (ajax/json-response-format {:keywords? true})
+                  :on-success [:success-results]
+                  :on-failure [:failure-results]}}))
 
 (rf/reg-sub
- :twirly?
- (fn [db _]
-   (:show-twirly db)))
+  :twirly?
+  (fn [db _]
+    (:show-twirly db)))
 
 (rf/reg-sub
- :results-or-failure
- (fn [db _]
-   (select-keys db [:results :failure])))
+  :results-or-failure
+  (fn [db _]
+    (select-keys db [:results :failure])))
 
 (defn dropdown []
   (r/with-let [open? (r/atom false)
@@ -153,7 +154,7 @@
       (if (= :xtql @(rf/subscribe [:get-type]))
         "XTQL"
         "SQL")
-      [:svg {:class"w-4 h-4 ml-2"
+      [:svg {:class "w-4 h-4 ml-2"
              :xmlns "http://www.w3.org/2000/svg"
              :fill "none"
              :viewBox "0 0 24 24"

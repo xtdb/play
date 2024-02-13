@@ -41,7 +41,6 @@
                                        (when (.-changes update)
                                          (callback (.. update -state -doc toString))))))
 
-
 (defonce clj-extensions #js [theme
                              (history)
                              (syntaxHighlighting defaultHighlightStyle)
@@ -62,8 +61,6 @@
                          StandardSQL
                          (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
                          #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
-
-
 
 (defn clj-editor [source {:keys [change-callback]}]
   (r/with-let [!view (r/atom nil)

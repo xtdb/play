@@ -17,9 +17,9 @@
  {:app
   {:target     :browser
 
-   :modules {:app {:entries [xt-fiddle.client]
+   :modules {:app {:entries [xt-fiddle.client]}}
                    ;; :preloads [devtools.preload]
-                   }}
+
 
    :output-dir "resources/public/js/compiled"
    :asset-path "/js/compiled"
@@ -35,14 +35,12 @@
 
  ;; TODO understand
  :cache-blockers #{}}
-#_
-{
- :builds
- {:app
-  {:target :browser
-   :output-dir "public/js"
-   :asset-path "/js"
+#_{:builds
+   {:app
+    {:target :browser
+     :output-dir "public/js"
+     :asset-path "/js"
 
-   :modules
-   {:main ; becomes public/js/main.js
-    {:init-fn starter.browser/init}}}}}
+     :modules
+     {:main ; becomes public/js/main.js
+      {:init-fn starter.browser/init}}}}}
