@@ -183,7 +183,6 @@
 (rf/reg-event-fx
   :db-run
   (fn [{:keys [db]} _]
-    (log/info :txs {:txs (:txs db)})
     (when-not (:app/loading db)
       {:db (-> db
                (assoc :show-twirly true)
@@ -212,7 +211,6 @@
 (defn dropdown []
   (r/with-let [open? (r/atom false)
                click-handler (fn [event]
-                               (log/info :event "foo")
                                (let [dropdown-elem (js/document.querySelector "#language-dropdown")]
                                  (when (not (.contains dropdown-elem (.-target event)))
                                    (reset! open? false))))

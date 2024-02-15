@@ -1,5 +1,12 @@
 (ns main
+  (:require [server]
+            [integrant.core :as ig])
   (:gen-class))
 
-(defn -main [& args]
-  (println "Hello from Clojure!!! " args))
+(def system
+  {:server/server {:join false
+                   :port 8000}})
+
+(defn -main [& _args]
+  (ig/init system)
+  @(delay))
