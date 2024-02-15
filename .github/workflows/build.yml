@@ -13,7 +13,7 @@ env:
 jobs:
   build-and-push-docker:
     runs-on: ubuntu-latest
-    if: github.repository == 'xtdb/xt-fiddle' && github.ref == 'refs/heads/main'
+    if: github.repository == 'xtdb/xt-fiddle'
     permissions:
       contents: read
       packages: write
