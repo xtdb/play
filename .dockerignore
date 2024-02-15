@@ -1,0 +1,7 @@
+.git
+.clj-kondo
+.yarn
+.shadow-cljs
+.lsp
+node_modules
+resources/public/js/compiled
