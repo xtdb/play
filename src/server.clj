@@ -47,6 +47,11 @@
                        (-> (response/resource-response "public/index.html")
                            (response/content-type "text/html")))}}]
 
+    ["/status"
+     {:get {:summary "Check server status"
+            :handler (fn [_request]
+                       (response/response {:status "ok"}))}}]
+
     ["/db-run"
      {:post {:summary "Run transactions + a query"
              :parameters {:body ::db-run}
