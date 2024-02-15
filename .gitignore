@@ -4,10 +4,9 @@ target
 repl
 .shadow-cljs
 target
-yarn.lock
 node_modules/
 .DS_Store
-resources/public/js
+resources/public/js/compiled
 .store
 out
 .#*
