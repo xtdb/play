@@ -91,7 +91,7 @@
                                   #_(ring/create-resource-handler {:root "public"})
                                   (ring/create-default-handler)))
                                 {:port port, :join? join})]
-    (log/info "server running " "on port " port)
+    (log/info "server running on port" port)
     server))
 
 (defmethod ig/init-key ::server [_ opts]
