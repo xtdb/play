@@ -1,0 +1,347 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  # >> VPC
+  # TODO: Use sub-stacks?
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.11.0/24
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.0.12.0/24
+      MapPublicIpOnLaunch: true
+
+  PrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.20.0/24
+      MapPublicIpOnLaunch: false
+
+  PrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.0.21.0/24
+      MapPublicIpOnLaunch: false
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetOneRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetOne
+
+  PublicSubnetTwoRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetTwo
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateSubnetOneRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnetOne
+
+  PrivateSubnetTwoRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnetTwo
+
+  # Might not need the NAT Gateway
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnetOne
+
+  PrivateRouteTableRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  # >> Load Balancer
+
+  # TODO: Rename
+  SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Security group allowing ingress/egress for all
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+
+  # TODO: Is this needed?
+  SelfIngressAllowRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref SecurityGroup
+
+  ECSALB:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: ECSALB
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnetOne
+        - !Ref PublicSubnetTwo
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  ECSTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: ECSALB
+    Properties:
+      Name: ECSTargetGroup
+      Port: 8000
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetType: ip
+
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /status
+      HealthCheckTimeoutSeconds: 5
+
+  # TODO: Figure out certificate
+  TempALBListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref ECSALB
+      Port: '80'
+      Protocol: HTTP
+
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ECSTargetGroup
+
+  # # Redirect all HTTP traffic to HTTPS
+  # HTTPALBListener:
+  #   Type: 'AWS::ElasticLoadBalancingV2::Listener'
+  #   Properties:
+  #     LoadBalancerArn: !Ref ECSALB
+  #     Port: '80'
+  #     Protocol: HTTP
+
+  #     DefaultActions:
+  #       - Type: redirect
+  #         RedirectConfig:
+  #           Port: 443
+  #           Protocol: HTTPS
+  #           StatusCode: HTTP_301
+
+  # # Terminate TLS & forward all traffic to the container
+  # HTTPSALBListener:
+  #   Type: 'AWS::ElasticLoadBalancingV2::Listener'
+  #   Properties:
+  #     Port: '443'
+  #     Protocol: HTTPS
+  #     LoadBalancerArn: !Ref ECSALB
+
+  #     SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
+  #     # TODO: Add certificates
+  #     Certificates: []
+
+  #     DefaultActions:
+  #       - Type: forward
+  #         TargetGroupArn: !Ref ECSTargetGroup
+
+  # >> ECS Deployment
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: 'xt-fiddle'
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: 'xt-fiddle'
+      RetentionInDays: 365
+
+  TaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+
+  TaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+  # TODO: Remove? Not used
+  ECSServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'elasticloadbalancing:DeregisterInstancesFromLoadBalancer'
+                  - 'elasticloadbalancing:DeregisterTargets'
+                  - 'elasticloadbalancing:Describe*'
+                  - 'elasticloadbalancing:RegisterInstancesWithLoadBalancer'
+                  - 'elasticloadbalancing:RegisterTargets'
+                  - 'ec2:Describe*'
+                  - 'ec2:AuthorizeSecurityGroupIngress'
+                Resource: '*'
+
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'xt-fiddle'
+      RequiresCompatibilities:
+        - 'FARGATE'
+      NetworkMode: 'awsvpc'
+
+      # TODO: Scale up/down?
+      Cpu: '1024'
+      Memory: '4096'
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+
+      ContainerDefinitions:
+        - Name: 'xt-fiddle'
+          # Image: 'ghcr.io/xtdb/xt-fiddle:latest'
+          Image: '199686536682.dkr.ecr.eu-west-1.amazonaws.com/xt-fiddle-todo-delete:latest'
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: xt-fiddle
+
+  TaskSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Security group allowing access to container
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+
+  ECSService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: 'FARGATE'
+
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 60
+
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'DISABLED'
+          SecurityGroups:
+            - !Ref TaskSecurityGroup
+          Subnets:
+            - !Ref PrivateSubnetOne
+            - !Ref PrivateSubnetTwo
+
+      LoadBalancers:
+        - ContainerName: xt-fiddle
+          ContainerPort: '8000'
+          TargetGroupArn: !Ref ECSTargetGroup
