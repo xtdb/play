@@ -37,16 +37,16 @@
   :app/init
   [(rf/inject-cofx ::query-params/get)]
   (fn [{:keys [_db query-params]} _]
-    (let [q-type (keyword (get query-params "type" "sql"))
-          boilerplate-url (get query-params "boilerplate_url")
+    (let [q-type (keyword (or (:type query-params) "sql"))
+          boilerplate-url (:boilerplate_url query-params)
           fetch-boilerplate? (not (nil? boilerplate-url))]
       (merge {:db {:type q-type
                    :app/loading fetch-boilerplate?
                    :boilerplate-url boilerplate-url
-                   :txs (some-> (get query-params "txs")
+                   :txs (some-> (:txs query-params)
                                 js/atob
                                 (decode-txs q-type))
-                   :query (some-> (get query-params "query")
+                   :query (some-> (:query query-params)
                                   js/atob
                                   (decode-query q-type))}}
              (when fetch-boilerplate?

@@ -4,6 +4,7 @@
 (defn get-query-params []
   (->> (js/URLSearchParams. (.-search js/window.location))
        (map js->clj)
+       (map (fn [[k v]] [(keyword k) v]))
        (into {})))
 
 (rf/reg-cofx ::get
