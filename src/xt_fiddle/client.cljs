@@ -37,59 +37,21 @@
   :app/init
   [(rf/inject-cofx ::query-params/get)]
   (fn [{:keys [_db query-params]} _]
-    (let [q-type (keyword (or (:type query-params) "sql"))
-          boilerplate-url (:boilerplate_url query-params)
-          fetch-boilerplate? (not (nil? boilerplate-url))]
+    (let [q-type (keyword (or (:type query-params) "sql"))]
       (merge {:db {:type q-type
-                   :app/loading fetch-boilerplate?
-                   :boilerplate-url boilerplate-url
                    :txs (some-> (:txs query-params)
                                 js/atob
                                 (decode-txs q-type))
                    :query (some-> (:query query-params)
                                   js/atob
-                                  (decode-query q-type))}}
-             (when fetch-boilerplate?
-               {:dispatch [:fetch-boilerplate boilerplate-url]})))))
-
-(rf/reg-event-db
-  :boilerplate-success
-  (fn [db [_ results]]
-    (-> db
-        (dissoc :show-twirly)
-        (assoc :boilerplate results))))
-
-;; TODO: do this
-(rf/reg-event-db
-  :boilerplate-failure
-  (fn [db [_ response]]
-    (-> db
-        (dissoc :show-twirly)
-        (assoc :failure response))))
-
-(rf/reg-event-fx
-  :fetch-boilerplate
-  (fn [{:keys [db]} [_ boilerplate-url]]
-    ;; TODO: Change to different swirly
-    {:db (-> db
-             (assoc :app/loading false)
-             (dissoc :failure :results))
-     :http-xhrio {:method :get
-                  :uri boilerplate-url
-                  :timeout 3000
-                  :response-format (ajax/text-response-format)
-                  :on-success [:boilerplate-success]
-                  :on-failure [:boilerplate-failure]}}))
+                                  (decode-query q-type))}}))))
 
 (rf/reg-event-fx
   :share
   (fn [{:keys [db]}]
-    {::query-params/set
-     (merge {:type (name (:type db))
-             :txs (js/btoa (:txs db))
-             :query (js/btoa (:query db))}
-            (when-let [boilerplate-url (:boilerplate-url db)]
-              {:boilerplate_url boilerplate-url}))}))
+    {::query-params/set {:type (name (:type db))
+                         :txs (js/btoa (:txs db))
+                         :query (js/btoa (:query db))}}))
 
 (rf/reg-event-db
   :dropdown-selection
@@ -142,11 +104,6 @@
     (:query db)))
 
 (rf/reg-sub
-  :boilerplate-url
-  (fn [db _]
-    (:boilerplate-url db)))
-
-(rf/reg-sub
   :app/loading
   :-> :app/loading)
 
@@ -173,7 +130,7 @@
                (dissoc :failure :results))
        :http-xhrio {:method :post
                     :uri "/db-run"
-                    :params {:txs (str "[" (:boilerplate db) (:txs db) "]")
+                    :params {:txs (str "[" (:txs db) "]")
                              :query (:query db)
                              :type "xtql"}
                     :timeout 3000
@@ -290,14 +247,7 @@
                 :on-click #(rf/dispatch [:share])}
       "Share!"]
 
-     [dropdown]
-     (when-let [boilerplate-url @(rf/subscribe [:boilerplate-url])]
-       [:p
-        "With data from "
-        [:a {:class "underline"
-             :href boilerplate-url
-             :target "_blank"}
-         "here"]])]]
+     [dropdown]]]
 
    [:div {:class "flex flex-1 overflow-hidden"}
     [:aside {:class "w-64 bg-gray-100 p-4 overflow-auto"}
