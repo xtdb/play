@@ -5,16 +5,10 @@
             ["@codemirror/lang-sql" :as sql :refer [PostgreSQL StandardSQL keywordCompletionSource]]
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :as view :refer [EditorView]]
-            ["react" :as react]
             [applied-science.js-interop :as j]
-            [clojure.string :as str]
             [nextjournal.clojure-mode :as cm-clj]
             [nextjournal.clojure-mode.test-utils :as test-utils]
-            [nextjournal.livedoc :as livedoc]
-            [reagent.core :as r]
-            [reagent.dom :as rdom]
-            [shadow.resource :as rc]
-            [lambdaisland.glogi :as log]))
+            [reagent.core :as r]))
 
 (def theme
   (.theme EditorView
