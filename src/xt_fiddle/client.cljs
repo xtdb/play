@@ -8,6 +8,7 @@
             [reagent.core :as r]
             [reagent.dom]
             [xt-fiddle.editor :as editor]
+            [xt-fiddle.query-params :as query-params]
             ["highlight.js/lib/core" :as hljs]
             ["highlight.js/lib/languages/clojure" :as hljs-clojure]))
 
@@ -16,23 +17,6 @@
 (log/set-levels
  {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
   ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
-
-(defn get-query-params []
-  (->> (js/URLSearchParams. (.-search js/window.location))
-       (map js->clj)
-       (into {})))
-
-(rf/reg-cofx :query-params
-  (fn [cofx _]
-    (assoc cofx :query-params (get-query-params))))
-
-(defn set-query-params [params]
-  (let [search-params (js/URLSearchParams.)]
-    (doseq [[k v] params]
-      (.set search-params (name k) (str v)))
-    (set! (.-search js/window.location) (.toString search-params))))
-
-(rf/reg-fx :set-query-params set-query-params)
 
 (defn strip-surrounding [s]
   (subs s 1 (dec (count s))))
@@ -51,7 +35,7 @@
 
 (rf/reg-event-fx
   :app/init
-  [(rf/inject-cofx :query-params)]
+  [(rf/inject-cofx ::query-params/get)]
   (fn [{:keys [_db query-params]} _]
     (let [q-type (keyword (get query-params "type" "sql"))
           boilerplate-url (get query-params "boilerplate_url")
@@ -100,7 +84,7 @@
 (rf/reg-event-fx
   :share
   (fn [{:keys [db]}]
-    {:set-query-params
+    {::query-params/set
      (merge {:type (name (:type db))
              :txs (js/btoa (:txs db))
              :query (js/btoa (:query db))}
@@ -300,14 +284,10 @@
 
      [:h2 "XT fiddle"]
      [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                :on-click (fn [event]
-                            (.preventDefault event)
-                            (rf/dispatch [:db-run]))}
+                :on-click #(rf/dispatch [:db-run])}
       "Run"]
      [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                :on-click (fn [event]
-                            (.preventDefault event)
-                            (rf/dispatch [:share]))}
+                :on-click #(rf/dispatch [:share])}
       "Share!"]
 
      [dropdown]
