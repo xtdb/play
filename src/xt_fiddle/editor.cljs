@@ -62,32 +62,21 @@
                          (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
                          #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
 
-(defn clj-editor [source {:keys [change-callback]}]
-  (r/with-let [!view (r/atom nil)
-               mount! (fn [el]
-                        (when el
-                          (reset! !view (new EditorView
-                                             (j/obj :state
-                                                    (test-utils/make-state #js [clj-extensions (on-change change-callback)] source)
-                                                    :parent el)))))]
-    [:div
-     [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"
-            :ref mount!
-            :style {:max-height 410}}]]
-    (finally
-      (j/call @!view :destroy))))
+(defn editor [{:keys [extensions]}]
+  (fn [source {:keys [change-callback]}]
+    (r/with-let [!view (r/atom nil)
+                 mount! (fn [el]
+                          (when el
+                            (reset! !view (new EditorView
+                                               (j/obj :state
+                                                      (test-utils/make-state #js [extensions (on-change change-callback)] source)
+                                                      :parent el)))))]
+      [:div {:ref mount!
+             ; TODO
+             :class "overflow-auto"}]
+      (finally
+        (j/call @!view :destroy)))))
 
-(defn sql-editor [source {:keys [change-callback]}]
-  (r/with-let [!view (r/atom nil)
-               mount! (fn [el]
-                        (when el
-                          (reset! !view (new EditorView
-                                             (j/obj :state
-                                                    (test-utils/make-state #js [sql-extensions (on-change change-callback)] source)
-                                                    :parent el)))))]
-    [:div
-     [:div {:class "rounded-md mb-0 text-sm monospace overflow-auto relative border shadow-lg bg-white"
-            :ref mount!
-            :style {:max-height 410}}]]
-    (finally
-      (j/call @!view :destroy))))
+(def clj-editor (editor {:extensions clj-extensions}))
+
+(def sql-editor (editor {:extensions sql-extensions}))
