@@ -158,7 +158,7 @@
                _ (js/window.addEventListener "click" click-handler)]
     [:div {:class "relative inline-block text-left"}
      [:button {:type "button"
-               :class "inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+               :class "inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-sm shadow-sm hover:bg-gray-50 focus:outline-none"
                :id "language-dropdown"
                :data-dropdown-toggle "dropdown"
                :on-change #(reset! open? false)
@@ -176,7 +176,7 @@
         {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2" :d "M19 9l-7 7-7-7"}]]]
 
      (when @open?
-       [:div {:class "z-10 absolute w-44 bg-white rounded divide-y divide-gray-100 shadow dark:bg-gray-700" :id "dropdown"}
+       [:div {:class "z-10 absolute w-44 bg-white divide-y divide-gray-100 shadow dark:bg-gray-700" :id "dropdown"}
         [:ul {:class "py-1 text-sm text-gray-700 dark:text-gray-200" :aria-labelledby "dropdownDefault"}
          [:li
           [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
@@ -232,41 +232,48 @@
   [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
    "Loading..."])
 
+(defn title [& body]
+  (into [:h2 {:class "text-lg font-semibold"}]
+        body))
+
+(defn button [opts & body]
+  (into [:button (merge {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"}
+                        opts)]
+        body))
+
 (defn app []
   [:div {:class "flex flex-col h-screen"}
    (when @(rf/subscribe [:app/loading])
      [page-spinner])
-   [:header {:class "bg-gray-200 p-4 text-lg font-semibold shadow-md flex items-center justify-between"}
-    [:div {:class "flex items-center space-x-4"}
 
-     [:h2 "XT fiddle"]
-     [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                :on-click #(rf/dispatch [:db-run])}
-      "Run"]
-     [:button  {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                :on-click #(rf/dispatch [:share])}
-      "Share!"]
+   [:header {:class "bg-gray-200 py-2 shadow-md"}
+    [:div {:class "container mx-auto flex items-center space-x-4"}
+     [title "XT fiddle"]
+     [dropdown]
+     [button {:on-click #(rf/dispatch [:share])}
+      [title "Share"]]
+     [:div {:class "flex-grow"}]
+     [button {:on-click #(rf/dispatch [:db-run])}
+      [title "Run!"]]]]
 
-     [dropdown]]]
-
-   [:div {:class "flex flex-1 overflow-hidden"}
-    [:aside {:class "w-64 bg-gray-100 p-4 overflow-auto"}
-     "Side"]
-    [:div {:class "flex flex-col flex-1 overflow-hidden"}
-     [:section {:class "flex flex-1 overflow-auto p-4"}
-      [:div {:class "flex-1 bg-white border mr-4 p-4"}
+   ;; overflow-hidden fixes a bug where if an editor would have content that goes off the
+   ;; screen the whole page would scroll.
+   [:div {:class "container mx-auto flex-grow overflow-hidden"}
+    [:div {:class "h-full flex flex-col gap-2 py-2"}
+     [:section {:class "h-1/2 flex gap-2"}
+      [:div {:class "flex flex-1 border overflow-scroll"}
        (if (= :xtql @(rf/subscribe [:get-type]))
          [editor/clj-editor (or @(rf/subscribe [:txs]) default-dml)
           {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
          [editor/sql-editor (or @(rf/subscribe [:txs]) default-sql-insert)
           {:change-callback (fn [txs] (rf/dispatch [:set-sql-txs txs]))}])]
-      [:div {:class "flex-1 bg-white border p-4"}
+      [:div {:class "flex flex-1 border overflow-scroll"}
        (if (= :xtql @(rf/subscribe [:get-type]))
          [editor/clj-editor (or @(rf/subscribe [:query]) default-xtql-query)
           {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
          [editor/sql-editor (or @(rf/subscribe [:query]) default-sql-query)
           {:change-callback  (fn [query] (rf/dispatch [:set-sql-query query]))}])]]
-     [:section {:class "flex-1 bg-white p-4 border-t border-gray-300" :style {:flex-grow 1}}
+     [:section {:class "h-1/2 border p-2 overflow-auto"}
       "Results:"
       (if @(rf/subscribe [:twirly?])
         [spinner]

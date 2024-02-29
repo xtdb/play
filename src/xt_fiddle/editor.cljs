@@ -65,9 +65,7 @@
                                                (j/obj :state
                                                       (test-utils/make-state #js [extensions (on-change change-callback)] source)
                                                       :parent el)))))]
-      [:div {:ref mount!
-             ; TODO
-             :class "overflow-auto"}]
+      [:div {:ref mount!}]
       (finally
         (j/call @!view :destroy)))))
 
