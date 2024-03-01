@@ -1,6 +1,14 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 
+Parameters:
+  HostedZoneId:
+    Type: 'String'
+    Description: 'The zone id for the hosted zone'
+  HostedZoneName:
+    Type: 'String'
+    Description: 'The zone name for the hosted zone'
+
 Resources:
   # >> VPC
   # TODO: Use sub-stacks?
@@ -114,6 +122,21 @@ Resources:
   #     DestinationCidrBlock: 0.0.0.0/0
   #     NatGatewayId: !Ref NatGateway
 
+
+  # >> Domain & Certificate
+
+  DomainRecord:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Name: !Join ['.', ['fiddle', !Ref HostedZoneName]]
+      HostedZoneId: !Ref HostedZoneId
+      Type: 'A'
+      AliasTarget:
+        DNSName: !GetAtt ECSALB.DNSName
+        HostedZoneId: !GetAtt ECSALB.CanonicalHostedZoneID
+        EvaluateTargetHealth: false
+
+
   # >> Load Balancer
 
   # TODO: Rename
@@ -214,6 +237,7 @@ Resources:
   #     DefaultActions:
   #       - Type: forward
   #         TargetGroupArn: !Ref ECSTargetGroup
+
 
   # >> ECS Deployment
 
