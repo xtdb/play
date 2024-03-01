@@ -280,6 +280,11 @@ Resources:
                   - 'ec2:AuthorizeSecurityGroupIngress'
                 Resource: '*'
 
+  ContainerRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: xt-fiddle
+
   TaskDefinition:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
@@ -296,8 +301,7 @@ Resources:
 
       ContainerDefinitions:
         - Name: 'xt-fiddle'
-          # Image: 'ghcr.io/xtdb/xt-fiddle:latest'
-          Image: '199686536682.dkr.ecr.eu-west-1.amazonaws.com/xt-fiddle-todo-delete:latest'
+          Image: !Join [":", [!GetAtt ContainerRepo.RepositoryUri, 'latest']]
           Essential: true
           PortMappings:
             - ContainerPort: 8000
