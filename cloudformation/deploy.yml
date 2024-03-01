@@ -103,24 +103,24 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnetTwo
 
-  # NOTE: If you need internet access in the private subnets, add this back in
-  # NatGatewayEIP:
-  #   Type: AWS::EC2::EIP
-  #   Properties:
-  #     Domain: vpc
-  #
-  # NatGateway:
-  #   Type: AWS::EC2::NatGateway
-  #   Properties:
-  #     AllocationId: !GetAtt NatGatewayEIP.AllocationId
-  #     SubnetId: !Ref PublicSubnetOne
-  #
-  # PrivateRouteTableRoute:
-  #   Type: AWS::EC2::Route
-  #   Properties:
-  #     RouteTableId: !Ref PrivateRouteTable
-  #     DestinationCidrBlock: 0.0.0.0/0
-  #     NatGatewayId: !Ref NatGateway
+  # NOTE: Needed so that fargate can pull the container from ECR
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnetOne
+
+  PrivateRouteTableRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
 
 
   # >> Domain & Certificate
