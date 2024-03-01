@@ -128,13 +128,29 @@ Resources:
   DomainRecord:
     Type: 'AWS::Route53::RecordSet'
     Properties:
-      Name: !Join ['.', ['fiddle', !Ref HostedZoneName]]
+      Name: !Sub
+        - 'fiddle.${Domain}.'
+        - Domain: !Ref HostedZoneName
       HostedZoneId: !Ref HostedZoneId
       Type: 'A'
       AliasTarget:
         DNSName: !GetAtt ECSALB.DNSName
         HostedZoneId: !GetAtt ECSALB.CanonicalHostedZoneID
         EvaluateTargetHealth: false
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub
+        - 'fiddle.${Domain}'
+        - Domain: !Ref HostedZoneName
+      ValidationMethod: 'DNS'
+
+      DomainValidationOptions:
+        - DomainName: !Sub
+            - 'fiddle.${Domain}'
+            - Domain: !Ref HostedZoneName
+          HostedZoneId: !Ref HostedZoneId
 
 
   # >> Load Balancer
@@ -195,8 +211,8 @@ Resources:
       HealthCheckPath: /status
       HealthCheckTimeoutSeconds: 5
 
-  # TODO: Figure out certificate
-  TempALBListener:
+  # Redirect all HTTP traffic to HTTPS
+  HTTPALBListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
       LoadBalancerArn: !Ref ECSALB
@@ -204,39 +220,27 @@ Resources:
       Protocol: HTTP
 
       DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Port: 443
+            Protocol: HTTPS
+            StatusCode: HTTP_301
+
+  # Terminate TLS & forward all traffic to the container
+  HTTPSALBListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      Port: '443'
+      Protocol: HTTPS
+      LoadBalancerArn: !Ref ECSALB
+
+      SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
+      Certificates:
+        - CertificateArn: !Ref Certificate
+
+      DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref ECSTargetGroup
-
-  # # Redirect all HTTP traffic to HTTPS
-  # HTTPALBListener:
-  #   Type: 'AWS::ElasticLoadBalancingV2::Listener'
-  #   Properties:
-  #     LoadBalancerArn: !Ref ECSALB
-  #     Port: '80'
-  #     Protocol: HTTP
-
-  #     DefaultActions:
-  #       - Type: redirect
-  #         RedirectConfig:
-  #           Port: 443
-  #           Protocol: HTTPS
-  #           StatusCode: HTTP_301
-
-  # # Terminate TLS & forward all traffic to the container
-  # HTTPSALBListener:
-  #   Type: 'AWS::ElasticLoadBalancingV2::Listener'
-  #   Properties:
-  #     Port: '443'
-  #     Protocol: HTTPS
-  #     LoadBalancerArn: !Ref ECSALB
-
-  #     SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
-  #     # TODO: Add certificates
-  #     Certificates: []
-
-  #     DefaultActions:
-  #       - Type: forward
-  #         TargetGroupArn: !Ref ECSTargetGroup
 
 
   # >> ECS Deployment
