@@ -76,6 +76,6 @@ jobs:
       - name: Deploy to AWS CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
-          name: xt-fiddle
+          name: 'xt-fiddle--service'
           template: cloudformation/service.yml
           parameter-overrides: "DockerTag=${{ steps.vars.outputs.tag }}"
