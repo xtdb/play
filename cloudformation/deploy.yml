@@ -8,14 +8,9 @@ Parameters:
   HostedZoneName:
     Type: 'String'
     Description: 'The zone name for the hosted zone'
-  DockerTag:
-    Type: 'String'
-    Default: 'latest'
-    Description: 'The zone name for the hosted zone'
 
 Resources:
   # >> VPC
-  # TODO: Use sub-stacks?
 
   VPC:
     Type: AWS::EC2::VPC
@@ -23,6 +18,13 @@ Resources:
       CidrBlock: 10.0.0.0/16
       EnableDnsSupport: true
       EnableDnsHostnames: true
+
+  SSMVPC:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_vpc-id'
+      Value: !Ref VPC
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -57,6 +59,13 @@ Resources:
       CidrBlock: 10.0.20.0/24
       MapPublicIpOnLaunch: false
 
+  SSMPrivateSubnetOne:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_private-subnet-1'
+      Value: !Ref PrivateSubnetOne
+
   PrivateSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
@@ -64,6 +73,13 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: 10.0.21.0/24
       MapPublicIpOnLaunch: false
+
+  SSMPrivateSubnetTwo:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_private-subnet-2'
+      Value: !Ref PrivateSubnetTwo
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -215,6 +231,13 @@ Resources:
       HealthCheckPath: /status
       HealthCheckTimeoutSeconds: 5
 
+  SSMECSTargetGroup:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_target-group-arn'
+      Value: !Ref ECSTargetGroup
+
   # Redirect all HTTP traffic to HTTPS
   HTTPALBListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
@@ -245,186 +268,3 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref ECSTargetGroup
-
-
-  # >> ECS Deployment
-
-  ECSCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: 'xt-fiddle'
-
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: 'xt-fiddle'
-      RetentionInDays: 365
-
-  TaskExecutionRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Principal:
-              Service: 'ecs-tasks.amazonaws.com'
-            Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
-
-  TaskRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Principal:
-              Service: 'ecs-tasks.amazonaws.com'
-            Action: 'sts:AssumeRole'
-
-  ContainerRepo:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: xt-fiddle
-
-  # TODO: Add scaling
-  TaskDefinition:
-    Type: 'AWS::ECS::TaskDefinition'
-    Properties:
-      Family: 'xt-fiddle'
-      RequiresCompatibilities:
-        - 'FARGATE'
-      NetworkMode: 'awsvpc'
-
-      # TODO: Scale up/down?
-      Cpu: '1024'
-      Memory: '4096'
-      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
-      TaskRoleArn: !GetAtt TaskRole.Arn
-
-      ContainerDefinitions:
-        - Name: 'xt-fiddle'
-          Image: !Join [":", [!GetAtt ContainerRepo.RepositoryUri, !Ref DockerTag]]
-          Essential: true
-          PortMappings:
-            - ContainerPort: 8000
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref LogGroup
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: xt-fiddle
-
-  TaskSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Properties:
-      VpcId: !Ref VPC
-      GroupDescription: Security group allowing access to container
-      SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          FromPort: 8000
-          ToPort: 8000
-      SecurityGroupEgress:
-        - CidrIp: 0.0.0.0/0
-          IpProtocol: -1
-
-  ECSService:
-    Type: 'AWS::ECS::Service'
-    Properties:
-      Cluster: !Ref ECSCluster
-      TaskDefinition: !Ref TaskDefinition
-      LaunchType: 'FARGATE'
-
-      DesiredCount: 1
-      HealthCheckGracePeriodSeconds: 60
-
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: 'DISABLED'
-          SecurityGroups:
-            - !Ref TaskSecurityGroup
-          Subnets:
-            - !Ref PrivateSubnetOne
-            - !Ref PrivateSubnetTwo
-
-      LoadBalancers:
-        - ContainerName: xt-fiddle
-          ContainerPort: '8000'
-          TargetGroupArn: !Ref ECSTargetGroup
-
-
-  # >> Github deploy IAM Role
-
-  GithubDeployUser:
-    Type: 'AWS::IAM::User'
-    Properties:
-      Policies:
-        # ECR Push
-        - PolicyName: ecr-allow-push
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ecr:CompleteLayerUpload
-                  - ecr:GetAuthorizationToken
-                  - ecr:UploadLayerPart
-                  - ecr:InitiateLayerUpload
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:PutImage
-                  - ecr:BatchGetImage
-                Resource: "*"
-                # Resource:
-                #   - !GetAtt ContainerRepo.Arn
-        # https://github.com/aws-actions/amazon-ecs-deploy-task-definition?tab=readme-ov-file#permissions
-        - PolicyName: task-definition-update
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Sid: RegisterTaskDefinition
-                Effect: Allow
-                Action:
-                  - ecs:RegisterTaskDefinition
-                Resource: "*"
-              - Sid: PassRolesInTaskDefinition
-                Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !GetAtt TaskRole.Arn
-                  - !GetAtt TaskExecutionRole.Arn
-              - Sid: DeployService
-                Effect: Allow
-                Action:
-                  - ecs:UpdateService
-                  - ecs:DescribeServices
-                Resource:
-                  - !GetAtt ECSCluster.Arn
-        # https://github.com/aws-actions/aws-cloudformation-github-deploy?tab=readme-ov-file#permissions
-        - PolicyName: cloudformation-deploy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - cloudformation:CreateStack
-                  - cloudformation:DescribeStacks
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:DescribeChangeSet
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:ExecuteChangeSet
-                Resource: "*"
-
-  GithubDeployUserAccessKey:
-    Type: 'AWS::IAM::AccessKey'
-    Properties:
-      UserName: !Ref GithubDeployUser
-
-Outputs:
-  GithubDeployAccessKeyId:
-    Value: !Ref GithubDeployUserAccessKey
-  GithubDeploySecretAccessKey:
-    Value: !GetAtt GithubDeployUserAccessKey.SecretAccessKey

@@ -77,5 +77,5 @@ jobs:
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
           name: xt-fiddle
-          template: cloudformation/deploy.yml
-          parameter-overrides: "HostedZoneId=${{ secrets.HOSTED_ZONE_ID }},HostedZoneName=${{ secrets.HOSTED_ZONE_NAME }},HostedZoneName=${{ steps.vars.outputs.tag }}"
+          template: cloudformation/service.yml
+          parameter-overrides: "DockerTag=${{ steps.vars.outputs.tag }}"

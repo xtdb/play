@@ -1,0 +1,76 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  # >> Github deploy IAM Role
+
+  GithubDeployUser:
+    Type: 'AWS::IAM::User'
+    Properties:
+      Policies:
+        # ECR Push
+        - PolicyName: ecr-allow-push
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetAuthorizationToken
+                  - ecr:UploadLayerPart
+                  - ecr:InitiateLayerUpload
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:BatchGetImage
+                Resource: "*"
+                # Resource:
+                #   - !GetAtt ContainerRepo.Arn
+        # https://github.com/aws-actions/amazon-ecs-deploy-task-definition?tab=readme-ov-file#permissions
+        - PolicyName: task-definition-update
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: RegisterTaskDefinition
+                Effect: Allow
+                Action:
+                  - ecs:RegisterTaskDefinition
+                Resource: "*"
+              - Sid: PassRolesInTaskDefinition
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - '{{resolve:ssm:xt-fiddle_task-role-arn}}'
+                  - '{{resolve:ssm:xt-fiddle_task-execution-role-arn}}'
+              - Sid: DeployService
+                Effect: Allow
+                Action:
+                  - ecs:UpdateService
+                  - ecs:DescribeServices
+                Resource:
+                  - '{{resolve:ssm:xt-fiddle_ecs-cluster-arn}}'
+        # https://github.com/aws-actions/aws-cloudformation-github-deploy?tab=readme-ov-file#permissions
+        - PolicyName: cloudformation-deploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:ExecuteChangeSet
+                Resource: "*"
+
+  GithubDeployUserAccessKey:
+    Type: 'AWS::IAM::AccessKey'
+    Properties:
+      UserName: !Ref GithubDeployUser
+
+Outputs:
+  GithubDeployAccessKeyId:
+    Value: !Ref GithubDeployUserAccessKey
+  GithubDeploySecretAccessKey:
+    Value: !GetAtt GithubDeployUserAccessKey.SecretAccessKey

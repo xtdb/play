@@ -1,0 +1,135 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  DockerTag:
+    Type: 'String'
+    Default: 'latest'
+    Description: 'The zone name for the hosted zone'
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: 'xt-fiddle'
+
+  SSMECSCluster:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_ecs-cluster-arn'
+      Value: !GetAtt ECSCluster.Arn
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: 'xt-fiddle'
+      RetentionInDays: 365
+
+  TaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+
+  SSMTaskExecutionRole:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_task-execution-role-arn'
+      Value: !GetAtt TaskExecutionRole.Arn
+
+  TaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+  SSMTaskRole:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_task-role-arn'
+      Value: !GetAtt TaskRole.Arn
+
+  ContainerRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: xt-fiddle
+
+  # TODO: Add scaling
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'xt-fiddle'
+      RequiresCompatibilities:
+        - 'FARGATE'
+      NetworkMode: 'awsvpc'
+
+      # TODO: Scale up/down?
+      Cpu: '1024'
+      Memory: '4096'
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+
+      ContainerDefinitions:
+        - Name: 'xt-fiddle'
+          Image: !Join [":", [!GetAtt ContainerRepo.RepositoryUri, !Ref DockerTag]]
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: xt-fiddle
+
+  TaskSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: '{{resolve:ssm:xt-fiddle_vpc-id}}'
+      GroupDescription: Security group allowing access to container
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+
+  ECSService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: 'FARGATE'
+
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 60
+
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'DISABLED'
+          SecurityGroups:
+            - !Ref TaskSecurityGroup
+          Subnets:
+            - '{{resolve:ssm:xt-fiddle_private-subnet-1}}'
+            - '{{resolve:ssm:xt-fiddle_private-subnet-2}}'
+      LoadBalancers:
+        - ContainerName: xt-fiddle
+          ContainerPort: '8000'
+          TargetGroupArn: '{{resolve:ssm:xt-fiddle_target-group-arn}}'
