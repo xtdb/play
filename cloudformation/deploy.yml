@@ -8,6 +8,10 @@ Parameters:
   HostedZoneName:
     Type: 'String'
     Description: 'The zone name for the hosted zone'
+  DockerTag:
+    Type: 'String'
+    Default: 'latest'
+    Description: 'The zone name for the hosted zone'
 
 Resources:
   # >> VPC
@@ -301,7 +305,7 @@ Resources:
 
       ContainerDefinitions:
         - Name: 'xt-fiddle'
-          Image: !Join [":", [!GetAtt ContainerRepo.RepositoryUri, 'latest']]
+          Image: !Join [":", [!GetAtt ContainerRepo.RepositoryUri, !Ref DockerTag]]
           Essential: true
           PortMappings:
             - ContainerPort: 8000
