@@ -39,7 +39,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  build-and-push-ecr:
+  build-and-push-ecr_and_deploy-cloudformation:
     runs-on: ubuntu-latest
     if: github.repository == 'xtdb/xt-fiddle'
     permissions:
@@ -69,3 +69,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Get tag
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+      - name: Deploy to AWS CloudFormation
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: xt-fiddle
+          template: cloudformation/deploy.yml
+          parameter-overrides: "HostedZoneId=${{ secrets.HOSTED_ZONE_ID }},HostedZoneName=${{ secrets.HOSTED_ZONE_NAME }},HostedZoneName=${{ steps.vars.outputs.tag }}"
