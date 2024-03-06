@@ -8,7 +8,6 @@ Resources:
     Type: 'AWS::IAM::User'
     Properties:
       Policies:
-        # ECR Push
         - PolicyName: ecr-allow-push
           PolicyDocument:
             Version: '2012-10-17'
@@ -23,9 +22,16 @@ Resources:
                   - ecr:PutImage
                   - ecr:BatchGetImage
                 Resource: "*"
-                # Resource:
-                #   - !GetAtt ContainerRepo.Arn
-        # https://github.com/aws-actions/amazon-ecs-deploy-task-definition?tab=readme-ov-file#permissions
+        - PolicyName: ssm-parameter-get
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:Describe*
+                  - ssm:Get*
+                  - ssm:List*
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/xt-fiddle_*"
         - PolicyName: task-definition-update
           PolicyDocument:
             Version: '2012-10-17'
@@ -34,6 +40,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - ecs:RegisterTaskDefinition
+                  - ecs:DeregisterTaskDefinition
                 Resource: "*"
               - Sid: PassRolesInTaskDefinition
                 Effect: Allow
@@ -48,7 +55,7 @@ Resources:
                   - ecs:UpdateService
                   - ecs:DescribeServices
                 Resource:
-                  - '{{resolve:ssm:xt-fiddle_ecs-cluster-arn}}'
+                  - '{{resolve:ssm:xt-fiddle_ecs-service-arn}}'
         # https://github.com/aws-actions/aws-cloudformation-github-deploy?tab=readme-ov-file#permissions
         - PolicyName: cloudformation-deploy
           PolicyDocument:
