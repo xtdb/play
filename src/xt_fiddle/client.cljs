@@ -18,33 +18,14 @@
  {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
   ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
-(defn strip-surrounding [s]
-  (subs s 1 (dec (count s))))
-
-(defn decode-txs [s q-type]
-  (case q-type
-    :sql (->> (re-seq #"\[:sql \"(.*?)\"\]" s)
-              (map second)
-              (str/join ";\n"))
-    :xtql s))
-
-(defn decode-query [s q-type]
-  (case q-type
-    :sql (strip-surrounding s)
-    :xtql s))
-
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx ::query-params/get)]
-  (fn [{:keys [_db query-params]} _]
-    (let [q-type (keyword (or (:type query-params) "sql"))]
-      (merge {:db {:type q-type
-                   :txs (some-> (:txs query-params)
-                                js/atob
-                                (decode-txs q-type))
-                   :query (some-> (:query query-params)
-                                  js/atob
-                                  (decode-query q-type))}}))))
+  (fn [{:keys [_db] {:keys [type txs query]} :query-params}
+       _]
+    {:db {:type (if type (keyword type) :sql)
+          :txs (when txs (js/atob txs))
+          :query (when query (js/atob query))}}))
 
 (rf/reg-event-fx
   :share
@@ -65,28 +46,10 @@
   (fn [db [_ txs]]
     (assoc db :txs txs)))
 
-(rf/reg-event-fx
-  :set-xtql-txs
-  (fn [_ [_ txs]]
-    {:dispatch [:set-txs txs]}))
-
-(rf/reg-event-fx
-  :set-sql-txs
-  (fn [_ [_ txs]]
-    {:dispatch [:set-txs (->> (str/split txs #";")
-                              (map str/trim)
-                              (remove str/blank?)
-                              (map #(str [:sql %]))
-                              (str/join " "))]}))
 (rf/reg-event-db
   :set-query
   (fn [db [_ query]]
     (assoc db :query query)))
-
-(rf/reg-event-db
-  :set-sql-query
-  (fn [db [_ query]]
-    (assoc db :query (pr-str query))))
 
 (rf/reg-sub
   :get-type
@@ -121,6 +84,21 @@
         (dissoc :show-twirly)
         (assoc :failure response))))
 
+(defn encode-txs [txs type]
+  (str "["
+       (case type
+         :sql (->> (str/split txs #";")
+                   (remove str/blank?)
+                   (map #(str [:sql %]))
+                   str/join)
+         :xtql txs)
+       "]"))
+
+(defn encode-query [query type]
+  (case type
+    :sql (pr-str query)
+    :xtql query))
+
 (rf/reg-event-fx
   :db-run
   (fn [{:keys [db]} _]
@@ -130,9 +108,8 @@
                (dissoc :failure :results))
        :http-xhrio {:method :post
                     :uri "/db-run"
-                    :params {:txs (str "[" (:txs db) "]")
-                             :query (:query db)
-                             :type "xtql"}
+                    :params {:txs (encode-txs (:txs db) (:type db))
+                             :query (encode-query (:query db) (:type db))}
                     :timeout 3000
                     :format (ajax/json-request-format)
                     :response-format (ajax/json-response-format {:keywords? true})
@@ -266,18 +243,18 @@
          [editor/clj-editor (or @(rf/subscribe [:txs]) default-dml)
           {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
          [editor/sql-editor (or @(rf/subscribe [:txs]) default-sql-insert)
-          {:change-callback (fn [txs] (rf/dispatch [:set-sql-txs txs]))}])]
+          {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}])]
       [:div {:class "flex flex-1 border overflow-scroll"}
        (if (= :xtql @(rf/subscribe [:get-type]))
          [editor/clj-editor (or @(rf/subscribe [:query]) default-xtql-query)
           {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
          [editor/sql-editor (or @(rf/subscribe [:query]) default-sql-query)
-          {:change-callback  (fn [query] (rf/dispatch [:set-sql-query query]))}])]]
+          {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}])]]
      [:section {:class "h-1/2 border p-2 overflow-auto"}
       "Results:"
       (if @(rf/subscribe [:twirly?])
         [spinner]
-        (let [{:keys [results failure] :as res} @(rf/subscribe [:results-or-failure])]
+        (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
           (if failure
             [display-error failure]
             [display-edn results])))]]]])

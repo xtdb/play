@@ -20,8 +20,7 @@
 
 (s/def ::txs string?) ; Always EDN
 (s/def ::query string?) ; Either XTQL or SQL
-(s/def ::type string?)
-(s/def ::db-run (s/keys :req-un [::txs ::query ::type]))
+(s/def ::db-run (s/keys :req-un [::txs ::query]))
 
 
 (defn- handle-ex-info [ex req]
@@ -60,7 +59,7 @@
                               ;; TODO: Filter for only the reader required?
                               txs (edn/read-string {:readers *data-readers*} txs)
                               query (edn/read-string {:readers *data-readers*} query)]
-                          #_(log/info :requst-data {:txs txs :query query :type type})
+                          #_(log/info :requst-data {:txs txs :query query})
                           (try
                             (with-open [node (xtn/start-node {})]
                               (xt/submit-tx node txs)
@@ -120,7 +119,7 @@
                        :as :string
                        :request-method :post
                        :content-type :json
-                       :form-params {:txs txs :query query :type "xtql"}
+                       :form-params {:txs txs :query query}
                        :url "http://localhost:8000/db-run"
                        :throw-exceptions? false} {})
       :body)
@@ -134,7 +133,7 @@
                        :as :string
                        :request-method :post
                        :content-type :json
-                       :form-params {:txs txs :query query :type "sql"}
+                       :form-params {:txs txs :query query}
                        :url "http://localhost:8000/db-run"
                        :throw-exceptions? false} {})
       :body))
