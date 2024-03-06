@@ -11,6 +11,7 @@ docker run -p 3000:8000 --pull=always ghcr.io/xtdb/xt-fiddle
 ```
 
 Then visit [https://localhost:3000](https://localhost:3000).
+(Wait until the first log line appears)
 
 ## Deploy
 
@@ -51,15 +52,15 @@ Then you can start the server by running `(go)` in the `user` namespace.
 You should than be able to browse a dev build at [http://localhost:8000](http://localhost:8000).
 
 
-### Infrastructure
+## Infrastructure
 
 Infrastructure is spread across three files:
-- cloudformation/deploy.yml
-  - Contains most of the infra
-- cloudformation/service.yml
-  - Just the bits that the github actions need to deploy
-- cloudformation/github-keys.yml
-  - Contains the user used by github to deploy
+
+| File | Description |
+| --- | --- |
+| cloudformation/deploy.yml | Contains most of the infra |
+| cloudformation/service.yml | Just the bits that the github actions need to deploy |
+| cloudformation/github-keys.yml | Contains the user used by github to deploy |
 
 These are glued together by liberal use of ssm parameters and [dynamic references](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references.html).
 
