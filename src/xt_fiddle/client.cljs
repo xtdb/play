@@ -109,8 +109,7 @@
        :http-xhrio {:method :post
                     :uri "/db-run"
                     :params {:txs (encode-txs (:txs db) (:type db))
-                             :query (encode-query (:query db) (:type db))
-                             :type "xtql"}
+                             :query (encode-query (:query db) (:type db))}
                     :timeout 3000
                     :format (ajax/json-request-format)
                     :response-format (ajax/json-response-format {:keywords? true})
