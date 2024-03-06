@@ -268,3 +268,103 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref ECSTargetGroup
+
+
+  # >> ECS Service
+  # The rest is in service.yml so it can be deployed by github
+
+  TaskSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: '{{resolve:ssm:xt-fiddle_vpc-id}}'
+      GroupDescription: Security group allowing access to container
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+
+  SSMECSTaskSecurityGroup:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_task-security-group'
+      Value: !Ref TaskSecurityGroup
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: 'xt-fiddle'
+
+  SSMECSCluster:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_ecs-cluster'
+      Value: !Ref ECSCluster
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: 'xt-fiddle'
+      RetentionInDays: 365
+
+  SSMLogGroup:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_log-group'
+      Value: !Ref LogGroup
+
+  TaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+
+  SSMTaskExecutionRole:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_task-execution-role-arn'
+      Value: !GetAtt TaskExecutionRole.Arn
+
+  TaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+  SSMTaskRole:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_task-role-arn'
+      Value: !GetAtt TaskRole.Arn
+
+  ContainerRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: xt-fiddle
+
+  SSMContainerRepoRepoUri:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_container-repo-repo-uri'
+      Value: !GetAtt ContainerRepo.RepositoryUri
