@@ -35,26 +35,28 @@
                                        (when (.-changes update)
                                          (callback (.. update -state -doc toString))))))
 
-(defonce clj-extensions #js [theme
-                             (history)
-                             (syntaxHighlighting defaultHighlightStyle)
-                             (view/drawSelection)
-                             (foldGutter)
-                             (.. EditorState -allowMultipleSelections (of true))
-                             cm-clj/default-extensions
-                             (.of view/keymap cm-clj/complete-keymap)
-                             (.of view/keymap historyKeymap)])
+(defonce clj-extensions
+  #js [theme
+       (history)
+       (syntaxHighlighting defaultHighlightStyle)
+       (view/drawSelection)
+       (foldGutter)
+       (.. EditorState -allowMultipleSelections (of true))
+       cm-clj/default-extensions
+       (.of view/keymap cm-clj/complete-keymap)
+       (.of view/keymap historyKeymap)])
 
-(def sql-extensions #js [theme
-                         (history)
-                         (syntaxHighlighting defaultHighlightStyle)
-                         (view/drawSelection)
-                         (foldGutter)
-                         (.. EditorState -allowMultipleSelections (of true))
-                         (.of view/keymap historyKeymap)
-                         StandardSQL
-                         (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
-                         #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
+(def sql-extensions
+  #js [theme
+       (history)
+       (syntaxHighlighting defaultHighlightStyle)
+       (view/drawSelection)
+       (foldGutter)
+       (.. EditorState -allowMultipleSelections (of true))
+       (.of view/keymap historyKeymap)
+       StandardSQL
+       (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
+       #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
 
 (defn editor [{:keys [extensions]}]
   (fn [{:keys [source change-callback]}]
