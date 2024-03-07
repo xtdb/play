@@ -35,9 +35,9 @@
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx ::query-params/get)]
-  (fn [{:keys [_db] {:keys [type txs query]} :query-params}
-       _]
-    (let [type (if type (keyword type) :sql)]
+  (fn [{:keys [query-params]} _]
+    (let [{:keys [type txs query]} query-params
+          type (if type (keyword type) :sql)]
       {:db {:type type
             :txs (if txs
                    (js/atob txs)
