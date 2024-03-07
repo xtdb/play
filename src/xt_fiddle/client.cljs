@@ -5,10 +5,10 @@
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
-            [reagent.core :as r]
             [reagent.dom]
             [xt-fiddle.editor :as editor]
             [xt-fiddle.query-params :as query-params]
+            [xt-fiddle.dropdown :refer [dropdown]]
             ["highlight.js/lib/core" :as hljs]
             ["highlight.js/lib/languages/clojure" :as hljs-clojure]))
 
@@ -126,52 +126,14 @@
   (fn [db _]
     (select-keys db [:results :failure])))
 
-(defn dropdown []
-  (r/with-let [open? (r/atom false)
-               click-handler (fn [event]
-                               (let [dropdown-elem (js/document.querySelector "#language-dropdown")]
-                                 (when (not (.contains dropdown-elem (.-target event)))
-                                   (reset! open? false))))
-               _ (js/window.addEventListener "click" click-handler)]
-    [:div {:class "relative inline-block text-left"}
-     [:button {:type "button"
-               :class "inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-sm shadow-sm hover:bg-gray-50 focus:outline-none"
-               :id "language-dropdown"
-               :data-dropdown-toggle "dropdown"
-               :on-change #(reset! open? false)
-               :on-click #(swap! open? not)}
-      (if (= :xtql @(rf/subscribe [:get-type]))
-        "XTQL"
-        "SQL")
-      [:svg {:class "w-4 h-4 ml-2"
-             :xmlns "http://www.w3.org/2000/svg"
-             :fill "none"
-             :viewBox "0 0 24 24"
-             :stroke "currentColor"
-             :aria-hidden "true"}
-       [:path
-        {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2" :d "M19 9l-7 7-7-7"}]]]
 
-     (when @open?
-       [:div {:class "z-10 absolute w-44 bg-white divide-y divide-gray-100 shadow dark:bg-gray-700" :id "dropdown"}
-        [:ul {:class "py-1 text-sm text-gray-700 dark:text-gray-200" :aria-labelledby "dropdownDefault"}
-         [:li
-          [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-               :on-click (fn [event]
-                           (.preventDefault event)
-                           (rf/dispatch [:dropdown-selection :xtql])
-                           (reset! open? false))}
-           "XTQL"]]
-         ;; TODO actually implement editor
-         [:li
-          [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-               :on-click (fn [event]
-                           (.preventDefault event)
-                           (rf/dispatch [:dropdown-selection :sql])
-                           (reset! open? false))}
-           "SQL"]]]])]
-    (finally
-      (js/window.removeEventListener "click" click-handler))))
+(defn language-dropdown []
+  [dropdown {:items [{:value :xtql :label "XTQL"}
+                     {:value :sql :label "SQL"}]
+             :on-click #(rf/dispatch [:dropdown-selection (:value %)])
+             :label (case @(rf/subscribe [:get-type])
+                      :xtql "XTQL"
+                      :sql "SQL")}])
 
 (defn render-raw-html [html-content]
   [:div {:dangerouslySetInnerHTML {:__html html-content}}])
@@ -226,7 +188,7 @@
    [:header {:class "bg-gray-200 py-2 shadow-md"}
     [:div {:class "container mx-auto flex items-center space-x-4"}
      [title "XT fiddle"]
-     [dropdown]
+     [language-dropdown]
      [button {:on-click #(rf/dispatch [:share])}
       [title "Share"]]
      [:div {:class "flex-grow"}]
