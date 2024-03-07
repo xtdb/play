@@ -4,15 +4,15 @@
             ["@codemirror/language" :refer [foldGutter syntaxHighlighting defaultHighlightStyle]]
             ["@codemirror/lang-sql" :as sql :refer [PostgreSQL StandardSQL keywordCompletionSource]]
             ["@codemirror/state" :refer [EditorState]]
-            ["@codemirror/view" :as view :refer [EditorView]]
+            ["@codemirror/view" :as view :refer [EditorView lineNumbers]]
             [applied-science.js-interop :as j]
             [nextjournal.clojure-mode :as cm-clj]
-            [nextjournal.clojure-mode.test-utils :as test-utils]
             [reagent.core :as r]))
 
 (def theme
   (.theme EditorView
-          (j/lit {".cm-content" {:white-space "pre-wrap"
+          (j/lit {"&.cm-editor" {:height "100%"}
+                  ".cm-content" {:white-space "pre-wrap"
                                  :padding "10px 0"
                                  :flex "1 1 0"}
 
@@ -24,8 +24,10 @@
                   ".cm-matchingBracket" {:border-bottom "1px solid var(--teal-color)"
                                          :color "inherit"}
                   ".cm-gutters" {:background "transparent"
-                                 :border "none"}
-                  ".cm-gutterElement" {:margin-left "5px"}
+                                 :padding "0 9px"
+                                 :line-height "1.6"
+                                 :font-size "16px"
+                                 :font-family "var(--code-font)"}
                   ;; only show cursor when focused
                   ".cm-cursor" {:visibility "hidden"}
                   "&.cm-focused .cm-cursor" {:visibility "visible"}})))
@@ -35,37 +37,59 @@
                                        (when (.-changes update)
                                          (callback (.. update -state -doc toString))))))
 
-(defonce clj-extensions #js [theme
-                             (history)
-                             (syntaxHighlighting defaultHighlightStyle)
-                             (view/drawSelection)
-                             (foldGutter)
-                             (.. EditorState -allowMultipleSelections (of true))
-                             cm-clj/default-extensions
-                             (.of view/keymap cm-clj/complete-keymap)
-                             (.of view/keymap historyKeymap)])
+(defonce clj-extensions
+  #js [theme
+       (history)
+       (syntaxHighlighting defaultHighlightStyle)
+       (view/drawSelection)
+       (foldGutter)
+       (lineNumbers)
+       (.. EditorState -allowMultipleSelections (of true))
+       cm-clj/default-extensions
+       (.of view/keymap cm-clj/complete-keymap)
+       (.of view/keymap historyKeymap)])
 
-(def sql-extensions #js [theme
-                         (history)
-                         (syntaxHighlighting defaultHighlightStyle)
-                         (view/drawSelection)
-                         (foldGutter)
-                         (.. EditorState -allowMultipleSelections (of true))
-                         (.of view/keymap historyKeymap)
-                         StandardSQL
-                         (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
-                         #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
+(def sql-extensions
+  #js [theme
+       (history)
+       (syntaxHighlighting defaultHighlightStyle)
+       (view/drawSelection)
+       (foldGutter)
+       (lineNumbers)
+       (.. EditorState -allowMultipleSelections (of true))
+       (.of view/keymap historyKeymap)
+       StandardSQL
+       (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
+       #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
 
+(defn make-view [{:keys [state parent]}]
+  (new EditorView #js{:state state :parent parent}))
+
+(defn make-state [{:keys [doc extensions]}]
+  (.create EditorState #js{:doc doc :extensions (clj->js extensions)}))
+
+;; NOTE: There's a bug here: changes to `source` aren't represented in the editor.
+;;       I can't think of a way around this right now :/
+;;       I'm going to "fix" it by trying to make sure this doesn't happen
 (defn editor [{:keys [extensions]}]
-  (fn [source {:keys [change-callback]}]
+  (fn [{:keys [source change-callback]}]
     (r/with-let [!view (r/atom nil)
+                 ; NOTE: This must be defined in the with-let
+                 ;       If put under :ref then it's called every time
+                 ;       the component is re-rendered.
+                 ;       This would create multiple instances of the editor.
                  mount! (fn [el]
                           (when el
-                            (reset! !view (new EditorView
-                                               (j/obj :state
-                                                      (test-utils/make-state #js [extensions (on-change change-callback)] source)
-                                                      :parent el)))))]
-      [:div {:ref mount!}]
+                            (let [extensions [extensions
+                                              (on-change change-callback)]
+                                  state (make-state
+                                         {:doc source
+                                          :extensions extensions})]
+                              (reset! !view (make-view
+                                             {:parent el
+                                              :state state})))))]
+      [:div {:class "h-full border overflow-scroll"
+             :ref mount!}]
       (finally
         (j/call @!view :destroy)))))
 

@@ -5,12 +5,13 @@
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
-            [reagent.core :as r]
             [reagent.dom]
             [xt-fiddle.editor :as editor]
             [xt-fiddle.query-params :as query-params]
+            [xt-fiddle.dropdown :refer [dropdown]]
             ["highlight.js/lib/core" :as hljs]
-            ["highlight.js/lib/languages/clojure" :as hljs-clojure]))
+            ["highlight.js/lib/languages/clojure" :as hljs-clojure]
+            ["highlight.js/lib/languages/json" :as hljs-json]))
 
 (glogi-console/install!)
 
@@ -18,14 +19,33 @@
  {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
   ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
+(def default-xtql-query "(from :docs [xt/id foo])")
+(def default-sql-query "SELECT docs.xt$id, docs.foo FROM docs")
+(defn default-query [type]
+  (case type
+    :xtql default-xtql-query
+    :sql default-sql-query))
+
+(def default-dml "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]")
+(def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
+(defn default-txs [type]
+  (case type
+    :xtql default-dml
+    :sql default-sql-insert))
+
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx ::query-params/get)]
-  (fn [{:keys [_db] {:keys [type txs query]} :query-params}
-       _]
-    {:db {:type (if type (keyword type) :sql)
-          :txs (when txs (js/atob txs))
-          :query (when query (js/atob query))}}))
+  (fn [{:keys [query-params]} _]
+    (let [{:keys [type txs query]} query-params
+          type (if type (keyword type) :sql)]
+      {:db {:type type
+            :txs (if txs
+                   (js/atob txs)
+                   (default-txs type))
+            :query (if query
+                     (js/atob query)
+                     (default-query type))}})))
 
 (rf/reg-event-fx
   :share
@@ -36,10 +56,11 @@
 
 (rf/reg-event-db
   :dropdown-selection
-  (fn [db [_ selection]]
+  (fn [db [_ new-type]]
     (-> db
-        (assoc :type selection)
-        (dissoc :txs :query))))
+        (assoc :type new-type)
+        (assoc :txs (default-txs new-type))
+        (assoc :query (default-query new-type)))))
 
 (rf/reg-event-db
   :set-txs
@@ -126,57 +147,20 @@
   (fn [db _]
     (select-keys db [:results :failure])))
 
-(defn dropdown []
-  (r/with-let [open? (r/atom false)
-               click-handler (fn [event]
-                               (let [dropdown-elem (js/document.querySelector "#language-dropdown")]
-                                 (when (not (.contains dropdown-elem (.-target event)))
-                                   (reset! open? false))))
-               _ (js/window.addEventListener "click" click-handler)]
-    [:div {:class "relative inline-block text-left"}
-     [:button {:type "button"
-               :class "inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-sm shadow-sm hover:bg-gray-50 focus:outline-none"
-               :id "language-dropdown"
-               :data-dropdown-toggle "dropdown"
-               :on-change #(reset! open? false)
-               :on-click #(swap! open? not)}
-      (if (= :xtql @(rf/subscribe [:get-type]))
-        "XTQL"
-        "SQL")
-      [:svg {:class "w-4 h-4 ml-2"
-             :xmlns "http://www.w3.org/2000/svg"
-             :fill "none"
-             :viewBox "0 0 24 24"
-             :stroke "currentColor"
-             :aria-hidden "true"}
-       [:path
-        {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2" :d "M19 9l-7 7-7-7"}]]]
 
-     (when @open?
-       [:div {:class "z-10 absolute w-44 bg-white divide-y divide-gray-100 shadow dark:bg-gray-700" :id "dropdown"}
-        [:ul {:class "py-1 text-sm text-gray-700 dark:text-gray-200" :aria-labelledby "dropdownDefault"}
-         [:li
-          [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-               :on-click (fn [event]
-                           (.preventDefault event)
-                           (rf/dispatch [:dropdown-selection :xtql])
-                           (reset! open? false))}
-           "XTQL"]]
-         ;; TODO actually implement editor
-         [:li
-          [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-               :on-click (fn [event]
-                           (.preventDefault event)
-                           (rf/dispatch [:dropdown-selection :sql])
-                           (reset! open? false))}
-           "SQL"]]]])]
-    (finally
-      (js/window.removeEventListener "click" click-handler))))
+(defn language-dropdown []
+  [dropdown {:items [{:value :xtql :label "XTQL"}
+                     {:value :sql :label "SQL"}]
+             :selected @(rf/subscribe [:get-type])
+             :on-click #(rf/dispatch [:dropdown-selection (:value %)])
+             :label (case @(rf/subscribe [:get-type])
+                      :xtql "XTQL"
+                      :sql "SQL")}])
 
 (defn render-raw-html [html-content]
   [:div {:dangerouslySetInnerHTML {:__html html-content}}])
 
-(defn highlight-code [code language]
+(defn highlight-code [{:keys [language]} code]
   [render-raw-html (.-value (hljs/highlight code #js {:language language}))])
 
 (defn spinner []
@@ -193,17 +177,41 @@
     [:p message]
     [:p (pr-str data)]]])
 
-(defn display-edn [edn-data]
-  (when edn-data
-    [:div
-     (for [[i row] (map-indexed vector edn-data)]
-       ^{:key i} [highlight-code (pr-str row) "clojure"])]))
+(defn table-order [a b]
+  (cond
+    (= a b) 0
+    (= a :xt/id) -1
+    (= b :xt/id) 1
+    :else (compare a b)))
 
-(def default-dml "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]")
-(def default-xtql-query "(from :docs [xt/id foo])")
-
-(def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
-(def default-sql-query "SELECT docs.xt$id, docs.name FROM docs")
+(defn display-table [results type]
+  (when results
+    (let [all-keys (->> results
+                        (mapcat keys)
+                        (into #{})
+                        (sort table-order))]
+      [:table {:class "table-auto w-full"}
+       [:thead
+        [:tr {:class "border-b"}
+         (for [k all-keys]
+           ^{:key k}
+           [:th {:class "text-left p-4"}
+            k])]]
+       [:tbody
+        (for [[i row] (map-indexed vector results)]
+          ^{:key i}
+          [:tr {:class "border-b"}
+           (for [k all-keys]
+             ^{:key k}
+             [:td {:class "text-left p-4"}
+              (let [value (get row k)]
+                (if (map? value)
+                  (case type
+                    :xtql [highlight-code {:language "clojure"}
+                           (pr-str value)]
+                    :sql [highlight-code {:language "json"}
+                          (js/JSON.stringify (clj->js value))])
+                  value))])])]])))
 
 (defn page-spinner []
   [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
@@ -226,7 +234,7 @@
    [:header {:class "bg-gray-200 py-2 shadow-md"}
     [:div {:class "container mx-auto flex items-center space-x-4"}
      [title "XT fiddle"]
-     [dropdown]
+     [language-dropdown]
      [button {:on-click #(rf/dispatch [:share])}
       [title "Share"]]
      [:div {:class "flex-grow"}]
@@ -238,31 +246,35 @@
    [:div {:class "container mx-auto flex-grow overflow-hidden"}
     [:div {:class "h-full flex flex-col gap-2 py-2"}
      [:section {:class "h-1/2 flex gap-2"}
-      [:div {:class "flex flex-1 border overflow-scroll"}
-       (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor (or @(rf/subscribe [:txs]) default-dml)
-          {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
-         [editor/sql-editor (or @(rf/subscribe [:txs]) default-sql-insert)
-          {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}])]
-      [:div {:class "flex flex-1 border overflow-scroll"}
-       (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor (or @(rf/subscribe [:query]) default-xtql-query)
-          {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
-         [editor/sql-editor (or @(rf/subscribe [:query]) default-sql-query)
-          {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}])]]
-     [:section {:class "h-1/2 border p-2 overflow-auto"}
-      "Results:"
-      (if @(rf/subscribe [:twirly?])
-        [spinner]
-        (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
-          (if failure
-            [display-error failure]
-            [display-edn results])))]]]])
+      (let [editor (case @(rf/subscribe [:get-type])
+                     :xtql editor/clj-editor
+                     :sql editor/sql-editor)]
+        [:<>
+         [:div {:class "flex-1 flex flex-col"}
+          [:h2 "Transactions:"]
+          [:div {:class "grow"}
+           [editor {:source @(rf/subscribe [:txs])
+                    :change-callback #(rf/dispatch [:set-txs %])}]]]
+         [:div {:class "flex-1 flex flex-col"}
+          [:h2 "Query:"]
+          [:div {:class "grow"}
+           [editor {:source @(rf/subscribe [:query])
+                    :change-callback #(rf/dispatch [:set-query %])}]]]])]
+     [:section {:class "h-1/2 flex flex-col"}
+      [:h2 "Results:"]
+      [:div {:class "grow border p-2 overflow-auto"}
+       (if @(rf/subscribe [:twirly?])
+         [spinner]
+         (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
+           (if failure
+             [display-error failure]
+             [display-table results @(rf/subscribe [:get-type])])))]]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []
   (log/info :start "start")
   (hljs/registerLanguage "clojure" hljs-clojure)
+  (hljs/registerLanguage "json" hljs-json)
   (rf/dispatch-sync [:app/init])
   (reagent.dom/render [app] (js/document.getElementById "app")))
 
