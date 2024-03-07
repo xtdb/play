@@ -249,10 +249,10 @@
                      :xtql editor/clj-editor
                      :sql editor/sql-editor)]
         [:<>
-         [:div {:class "flex flex-1 border overflow-scroll"}
+         [:div {:class "flex-1 border overflow-scroll"}
           [editor {:source @(rf/subscribe [:txs])
                    :change-callback #(rf/dispatch [:set-txs %])}]]
-         [:div {:class "flex flex-1 border overflow-scroll"}
+         [:div {:class "flex-1 border overflow-scroll"}
           [editor {:source @(rf/subscribe [:query])
                    :change-callback #(rf/dispatch [:set-query %])}]]])]
      [:section {:class "h-1/2 border p-2 overflow-auto"}

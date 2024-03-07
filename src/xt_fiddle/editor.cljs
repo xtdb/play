@@ -11,7 +11,8 @@
 
 (def theme
   (.theme EditorView
-          (j/lit {".cm-content" {:white-space "pre-wrap"
+          (j/lit {"&.cm-editor" {:height "100%"}
+                  ".cm-content" {:white-space "pre-wrap"
                                  :padding "10px 0"
                                  :flex "1 1 0"}
 
@@ -78,7 +79,8 @@
                                       (make-view
                                        {:parent el
                                         :state state})))))]
-      [:div {:ref mount!}]
+      [:div {:class "h-full"
+             :ref mount!}]
       (finally
         (j/call @!view :destroy)))))
 
