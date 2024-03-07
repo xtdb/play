@@ -165,7 +165,7 @@
 (def default-xtql-query "(from :docs [xt/id foo])")
 
 (def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
-(def default-sql-query "SELECT docs.xt$id, docs.name FROM docs")
+(def default-sql-query "SELECT docs.xt$id, docs.foo FROM docs")
 
 (defn page-spinner []
   [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
