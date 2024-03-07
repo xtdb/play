@@ -7,7 +7,6 @@
             ["@codemirror/view" :as view :refer [EditorView lineNumbers]]
             [applied-science.js-interop :as j]
             [nextjournal.clojure-mode :as cm-clj]
-            [nextjournal.clojure-mode.test-utils :as test-utils]
             [reagent.core :as r]))
 
 (def theme
@@ -60,15 +59,25 @@
        (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
        #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
 
+(defn make-view [{:keys [state parent]}]
+  (new EditorView #js{:state state :parent parent}))
+
+(defn make-state [{:keys [doc extensions]}]
+  (.create EditorState #js{:doc doc :extensions (clj->js extensions)}))
+
 (defn editor [{:keys [extensions]}]
   (fn [{:keys [source change-callback]}]
     (r/with-let [!view (r/atom nil)
                  mount! (fn [el]
                           (when el
-                            (reset! !view (new EditorView
-                                               (j/obj :state
-                                                      (test-utils/make-state #js [extensions (on-change change-callback)] source)
-                                                      :parent el)))))]
+                            (reset! !view
+                                    (let [extensions [extensions
+                                                      (on-change change-callback)]
+                                          state (make-state {:doc source
+                                                             :extensions extensions})]
+                                      (make-view
+                                       {:parent el
+                                        :state state})))))]
       [:div {:ref mount!}]
       (finally
         (j/call @!view :destroy)))))
