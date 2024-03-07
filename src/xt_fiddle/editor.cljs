@@ -74,16 +74,20 @@
 (defn editor [{:keys [extensions]}]
   (fn [{:keys [source change-callback]}]
     (r/with-let [!view (r/atom nil)
+                 ; NOTE: This must be defined in the with-let
+                 ;       If put under :ref then it's called every time
+                 ;       the component is re-rendered.
+                 ;       This would create multiple instances of the editor.
                  mount! (fn [el]
                           (when el
-                            (reset! !view
-                                    (let [extensions [extensions
-                                                      (on-change change-callback)]
-                                          state (make-state {:doc source
-                                                             :extensions extensions})]
-                                      (make-view
-                                       {:parent el
-                                        :state state})))))]
+                            (let [extensions [extensions
+                                              (on-change change-callback)]
+                                  state (make-state
+                                         {:doc source
+                                          :extensions extensions})]
+                              (reset! !view (make-view
+                                             {:parent el
+                                              :state state})))))]
       [:div {:class "h-full"
              :ref mount!}]
       (finally
