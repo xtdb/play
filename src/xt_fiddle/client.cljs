@@ -250,20 +250,25 @@
                      :xtql editor/clj-editor
                      :sql editor/sql-editor)]
         [:<>
-         [:div {:class "flex-1 border overflow-scroll"}
-          [editor {:source @(rf/subscribe [:txs])
-                   :change-callback #(rf/dispatch [:set-txs %])}]]
-         [:div {:class "flex-1 border overflow-scroll"}
-          [editor {:source @(rf/subscribe [:query])
-                   :change-callback #(rf/dispatch [:set-query %])}]]])]
-     [:section {:class "h-1/2 border p-2 overflow-auto"}
-      "Results:"
-      (if @(rf/subscribe [:twirly?])
-        [spinner]
-        (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
-          (if failure
-            [display-error failure]
-            [display-table results @(rf/subscribe [:get-type])])))]]]])
+         [:div {:class "flex-1 flex flex-col"}
+          [:h2 "Transactions:"]
+          [:div {:class "grow"}
+           [editor {:source @(rf/subscribe [:txs])
+                    :change-callback #(rf/dispatch [:set-txs %])}]]]
+         [:div {:class "flex-1 flex flex-col"}
+          [:h2 "Query:"]
+          [:div {:class "grow"}
+           [editor {:source @(rf/subscribe [:query])
+                    :change-callback #(rf/dispatch [:set-query %])}]]]])]
+     [:section {:class "h-1/2 flex flex-col"}
+      [:h2 "Results:"]
+      [:div {:class "grow border p-2 overflow-auto"}
+       (if @(rf/subscribe [:twirly?])
+         [spinner]
+         (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
+           (if failure
+             [display-error failure]
+             [display-table results @(rf/subscribe [:get-type])])))]]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []

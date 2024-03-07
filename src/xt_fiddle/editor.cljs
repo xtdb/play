@@ -88,7 +88,7 @@
                               (reset! !view (make-view
                                              {:parent el
                                               :state state})))))]
-      [:div {:class "h-full"
+      [:div {:class "h-full border overflow-scroll"
              :ref mount!}]
       (finally
         (j/call @!view :destroy)))))
