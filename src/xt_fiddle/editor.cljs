@@ -4,7 +4,7 @@
             ["@codemirror/language" :refer [foldGutter syntaxHighlighting defaultHighlightStyle]]
             ["@codemirror/lang-sql" :as sql :refer [PostgreSQL StandardSQL keywordCompletionSource]]
             ["@codemirror/state" :refer [EditorState]]
-            ["@codemirror/view" :as view :refer [EditorView]]
+            ["@codemirror/view" :as view :refer [EditorView lineNumbers]]
             [applied-science.js-interop :as j]
             [nextjournal.clojure-mode :as cm-clj]
             [nextjournal.clojure-mode.test-utils :as test-utils]
@@ -41,6 +41,7 @@
        (syntaxHighlighting defaultHighlightStyle)
        (view/drawSelection)
        (foldGutter)
+       (lineNumbers)
        (.. EditorState -allowMultipleSelections (of true))
        cm-clj/default-extensions
        (.of view/keymap cm-clj/complete-keymap)
@@ -52,6 +53,7 @@
        (syntaxHighlighting defaultHighlightStyle)
        (view/drawSelection)
        (foldGutter)
+       (lineNumbers)
        (.. EditorState -allowMultipleSelections (of true))
        (.of view/keymap historyKeymap)
        StandardSQL
