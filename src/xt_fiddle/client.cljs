@@ -10,7 +10,8 @@
             [xt-fiddle.query-params :as query-params]
             [xt-fiddle.dropdown :refer [dropdown]]
             ["highlight.js/lib/core" :as hljs]
-            ["highlight.js/lib/languages/clojure" :as hljs-clojure]))
+            ["highlight.js/lib/languages/clojure" :as hljs-clojure]
+            ["highlight.js/lib/languages/json" :as hljs-json]))
 
 (glogi-console/install!)
 
@@ -158,7 +159,7 @@
 (defn render-raw-html [html-content]
   [:div {:dangerouslySetInnerHTML {:__html html-content}}])
 
-(defn highlight-code [code language]
+(defn highlight-code [{:keys [language]} code]
   [render-raw-html (.-value (hljs/highlight code #js {:language language}))])
 
 (defn spinner []
@@ -175,11 +176,41 @@
     [:p message]
     [:p (pr-str data)]]])
 
-(defn display-edn [edn-data]
-  (when edn-data
-    [:div
-     (for [[i row] (map-indexed vector edn-data)]
-       ^{:key i} [highlight-code (pr-str row) "clojure"])]))
+(defn table-order [a b]
+  (cond
+    (= a b) 0
+    (= a :xt/id) -1
+    (= b :xt/id) 1
+    :else (compare a b)))
+
+(defn display-table [results type]
+  (when results
+    (let [all-keys (->> results
+                        (mapcat keys)
+                        (into #{})
+                        (sort table-order))]
+      [:table {:class "table-auto w-full"}
+       [:thead
+        [:tr {:class "border-b"}
+         (for [k all-keys]
+           ^{:key k}
+           [:th {:class "text-left p-4"}
+            k])]]
+       [:tbody
+        (for [[i row] (map-indexed vector results)]
+          ^{:key i}
+          [:tr {:class "border-b"}
+           (for [k all-keys]
+             ^{:key k}
+             [:td {:class "text-left p-4"}
+              (let [value (get row k)]
+                (if (map? value)
+                  (case type
+                    :xtql [highlight-code {:language "clojure"}
+                           (pr-str value)]
+                    :sql [highlight-code {:language "json"}
+                          (js/JSON.stringify (clj->js value))])
+                  value))])])]])))
 
 (defn page-spinner []
   [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
@@ -231,12 +262,13 @@
         (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
           (if failure
             [display-error failure]
-            [display-edn results])))]]]])
+            [display-table results @(rf/subscribe [:get-type])])))]]]])
 
 ;; start is called by init and after code reloading finishes
 (defn ^:dev/after-load start! []
   (log/info :start "start")
   (hljs/registerLanguage "clojure" hljs-clojure)
+  (hljs/registerLanguage "json" hljs-json)
   (rf/dispatch-sync [:app/init])
   (reagent.dom/render [app] (js/document.getElementById "app")))
 
