@@ -24,8 +24,10 @@
                   ".cm-matchingBracket" {:border-bottom "1px solid var(--teal-color)"
                                          :color "inherit"}
                   ".cm-gutters" {:background "transparent"
-                                 :border "none"}
-                  ".cm-gutterElement" {:margin-left "5px"}
+                                 :padding "0 9px"
+                                 :line-height "1.6"
+                                 :font-size "16px"
+                                 :font-family "var(--code-font)"}
                   ;; only show cursor when focused
                   ".cm-cursor" {:visibility "hidden"}
                   "&.cm-focused .cm-cursor" {:visibility "visible"}})))
