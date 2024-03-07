@@ -68,6 +68,9 @@
 (defn make-state [{:keys [doc extensions]}]
   (.create EditorState #js{:doc doc :extensions (clj->js extensions)}))
 
+;; NOTE: There's a bug here: changes to `source` aren't represented in the editor.
+;;       I can't think of a way around this right now :/
+;;       I'm going to "fix" it by trying to make sure this doesn't happen
 (defn editor [{:keys [extensions]}]
   (fn [{:keys [source change-callback]}]
     (r/with-let [!view (r/atom nil)

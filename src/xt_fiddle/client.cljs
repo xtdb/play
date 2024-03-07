@@ -151,6 +151,7 @@
 (defn language-dropdown []
   [dropdown {:items [{:value :xtql :label "XTQL"}
                      {:value :sql :label "SQL"}]
+             :selected @(rf/subscribe [:get-type])
              :on-click #(rf/dispatch [:dropdown-selection (:value %)])
              :label (case @(rf/subscribe [:get-type])
                       :xtql "XTQL"

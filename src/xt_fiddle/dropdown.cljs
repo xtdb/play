@@ -1,7 +1,7 @@
 (ns xt-fiddle.dropdown
   (:require [reagent.core :as r]))
 
-(defn dropdown [{:keys [label items on-click]}]
+(defn dropdown [{:keys [label selected items on-click]}]
   (r/with-let [id (str (gensym "dropdown"))
                open? (r/atom false)
               ; Close the dropdown if the user clicks outside of it
@@ -30,14 +30,20 @@
      (when @open?
        [:div {:class "z-10 absolute w-44 bg-white divide-y divide-gray-100 shadow dark:bg-gray-700"}
         [:ul {:class "py-1 text-sm text-gray-700 dark:text-gray-200" :aria-labelledby "dropdownDefault"}
-         (for [{:keys [value label] :as item} items]
-           ^{:key value}
-           [:li
-            [:a {:href "#" :class  "block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                 :on-click (fn [event]
-                             (.preventDefault event)
-                             (on-click item)
-                             (reset! open? false))}
-             label]])]])]
+         (doall
+          (for [{:keys [value label] :as item} items]
+            ^{:key value}
+            [:li
+             [:a {:href "#"
+                  :class (str "block px-4 py-2 "
+                              (if (= selected value)
+                                "bg-gray-100 text-gray-400 cursor-default"
+                                "hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:text-white"))
+                  :on-click (fn [event]
+                              (.preventDefault event)
+                              (when-not (= selected value)
+                                (on-click item))
+                              (reset! open? false))}
+              label]]))]])]
     (finally
       (js/window.removeEventListener "click" click-handler))))
