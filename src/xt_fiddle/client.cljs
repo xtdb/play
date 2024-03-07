@@ -18,14 +18,33 @@
  {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
   ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
+(def default-xtql-query "(from :docs [xt/id foo])")
+(def default-sql-query "SELECT docs.xt$id, docs.foo FROM docs")
+(defn default-query [type]
+  (case type
+    :xtql default-xtql-query
+    :sql default-sql-query))
+
+(def default-dml "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]")
+(def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
+(defn default-txs [type]
+  (case type
+    :xtql default-dml
+    :sql default-sql-insert))
+
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx ::query-params/get)]
   (fn [{:keys [_db] {:keys [type txs query]} :query-params}
        _]
-    {:db {:type (if type (keyword type) :sql)
-          :txs (when txs (js/atob txs))
-          :query (when query (js/atob query))}}))
+    (let [type (if type (keyword type) :sql)]
+      {:db {:type type
+            :txs (if txs
+                   (js/atob txs)
+                   (default-txs type))
+            :query (if query
+                     (js/atob query)
+                     (default-query type))}})))
 
 (rf/reg-event-fx
   :share
@@ -36,10 +55,11 @@
 
 (rf/reg-event-db
   :dropdown-selection
-  (fn [db [_ selection]]
+  (fn [db [_ new-type]]
     (-> db
-        (assoc :type selection)
-        (dissoc :txs :query))))
+        (assoc :type new-type)
+        (assoc :txs (default-txs new-type))
+        (assoc :query (default-query new-type)))))
 
 (rf/reg-event-db
   :set-txs
@@ -161,12 +181,6 @@
      (for [[i row] (map-indexed vector edn-data)]
        ^{:key i} [highlight-code (pr-str row) "clojure"])]))
 
-(def default-dml "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]")
-(def default-xtql-query "(from :docs [xt/id foo])")
-
-(def default-sql-insert "INSERT INTO docs (xt$id, foo) VALUES (1, 'bar')")
-(def default-sql-query "SELECT docs.xt$id, docs.foo FROM docs")
-
 (defn page-spinner []
   [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
    "Loading..."])
@@ -200,18 +214,16 @@
    [:div {:class "container mx-auto flex-grow overflow-hidden"}
     [:div {:class "h-full flex flex-col gap-2 py-2"}
      [:section {:class "h-1/2 flex gap-2"}
-      [:div {:class "flex flex-1 border overflow-scroll"}
-       (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor (or @(rf/subscribe [:txs]) default-dml)
-          {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}]
-         [editor/sql-editor (or @(rf/subscribe [:txs]) default-sql-insert)
-          {:change-callback (fn [txs] (rf/dispatch [:set-txs txs]))}])]
-      [:div {:class "flex flex-1 border overflow-scroll"}
-       (if (= :xtql @(rf/subscribe [:get-type]))
-         [editor/clj-editor (or @(rf/subscribe [:query]) default-xtql-query)
-          {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}]
-         [editor/sql-editor (or @(rf/subscribe [:query]) default-sql-query)
-          {:change-callback  (fn [query] (rf/dispatch [:set-query query]))}])]]
+      (let [editor (case @(rf/subscribe [:get-type])
+                     :xtql editor/clj-editor
+                     :sql editor/sql-editor)]
+        [:<>
+         [:div {:class "flex flex-1 border overflow-scroll"}
+          [editor {:source @(rf/subscribe [:txs])
+                   :change-callback #(rf/dispatch [:set-txs %])}]]
+         [:div {:class "flex flex-1 border overflow-scroll"}
+          [editor {:source @(rf/subscribe [:query])
+                   :change-callback #(rf/dispatch [:set-query %])}]]])]
      [:section {:class "h-1/2 border p-2 overflow-auto"}
       "Results:"
       (if @(rf/subscribe [:twirly?])

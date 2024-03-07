@@ -57,7 +57,7 @@
                          #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
 
 (defn editor [{:keys [extensions]}]
-  (fn [source {:keys [change-callback]}]
+  (fn [{:keys [source change-callback]}]
     (r/with-let [!view (r/atom nil)
                  mount! (fn [el]
                           (when el
