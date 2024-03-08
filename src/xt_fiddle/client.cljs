@@ -74,18 +74,15 @@
 
 (rf/reg-sub
   :get-type
-  (fn [db _]
-    (:type db)))
+  :-> :type)
 
 (rf/reg-sub
   :txs
-  (fn [db _]
-    (:txs db)))
+  :-> :txs)
 
 (rf/reg-sub
   :query
-  (fn [db _]
-    (:query db)))
+  :-> :query)
 
 (rf/reg-sub
   :app/loading
@@ -139,13 +136,11 @@
 
 (rf/reg-sub
   :twirly?
-  (fn [db _]
-    (:show-twirly db)))
+  :-> :show-twirly)
 
 (rf/reg-sub
   :results-or-failure
-  (fn [db _]
-    (select-keys db [:results :failure])))
+  :-> #(-> % (select-keys [:results :failure])))
 
 
 (defn language-dropdown []
