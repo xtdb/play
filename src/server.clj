@@ -2,7 +2,6 @@
   (:require [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [clojure.core.match :refer [match]]
             [integrant.core :as ig]
             [muuntaja.core :as m]
             [reitit.coercion.spec :as rcs]
@@ -14,14 +13,13 @@
             [ring.adapter.jetty :as jetty]
             [ring.middleware.params :as params]
             [ring.util.response :as response]
-            [xtdb.error :as err]
             [xtdb.api :as xt]
-            [xtdb.node :as xtn]))
+            [xtdb.node :as xtn]
+            [hiccup.page :as h]))
 
-(s/def ::txs string?) ; Always EDN
-(s/def ::query string?) ; Either XTQL or SQL
+(s/def ::txs string?)
+(s/def ::query string?)
 (s/def ::db-run (s/keys :req-un [::txs ::query]))
-
 
 (defn- handle-ex-info [ex req]
   {:status 400,
@@ -79,11 +77,10 @@
      {:post {:summary "Run transactions + a query"
              :parameters {:body ::db-run}
              :handler (fn [request]
-                        (let [{:keys [txs query] :as body} (get-in request [:parameters :body])
+                        (let [{:keys [txs query]} (get-in request [:parameters :body])
                               ;; TODO: Filter for only the reader required?
                               txs (edn/read-string {:readers *data-readers*} txs)
                               query (edn/read-string {:readers *data-readers*} query)]
-                          #_(log/info :requst-data {:txs txs :query query})
                           (try
                             (with-open [node (xtn/start-node {})]
                               (xt/submit-tx node txs)
@@ -121,44 +118,3 @@
 
 (defmethod ig/halt-key! ::server [_ server]
   (.stop server))
-
-(comment
-  (def server (start {:join false}))
-  (do
-    (.stop server)
-    (def server (start {:join false})))
-
-  (require '[clojure.java.browse :as browse])
-  (browse/browse-url "http://localhost:8000")
-
-  ;; testing the db-run route
-  (require '[hato.client :as client])
-
-  ;; XTQL
-  (def txs (pr-str "[(xt/put :docs {:xt/id 1 :foo \"bar\"})]"))
-  (def query (pr-str '(from :docs [xt/id foo])))
-
-  (-> (client/request {:accept :json
-                       :as :string
-                       :request-method :post
-                       :content-type :json
-                       :form-params {:txs txs :query query}
-                       :url "http://localhost:8000/db-run"
-                       :throw-exceptions? false} {})
-      :body)
-  ;; => "[{\"foo\":\"bar\",\"xt/id\":1}]"
-
-  ;; SQL
-  (def txs ["INSERT INTO users (xt$id, name) VALUES ('jms', 'James'), ('hak', 'Håkan')"])
-  (def query "SELECT * FROM users")
-
-  (-> (client/request {:accept :json
-                       :as :string
-                       :request-method :post
-                       :content-type :json
-                       :form-params {:txs txs :query query}
-                       :url "http://localhost:8000/db-run"
-                       :throw-exceptions? false} {})
-      :body))
-
-
