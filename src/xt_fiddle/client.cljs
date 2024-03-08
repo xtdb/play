@@ -205,7 +205,8 @@
              ^{:key k}
              [:td {:class "text-left p-4"}
               (let [value (get row k)]
-                (if (map? value)
+                (if (and (not (string? value))
+                         (seqable? value))
                   (case type
                     :xtql [highlight-code {:language "clojure"}
                            (pr-str value)]
