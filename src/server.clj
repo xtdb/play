@@ -84,7 +84,8 @@
                           (try
                             (with-open [node (xtn/start-node {})]
                               (xt/submit-tx node txs)
-                              (let [res (xt/q node query)]
+                              (let [res (xt/q node query (when (string? query)
+                                                           {:key-fn :snake-case-string}))]
                                 {:status 200
                                  :body res}))
                             (catch Exception e
