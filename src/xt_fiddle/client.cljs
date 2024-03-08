@@ -189,8 +189,9 @@
   (when results
     (let [all-keys (->> results
                         (mapcat keys)
-                        (into #{})
-                        (sort table-order))]
+                        (into #{}))
+          all-keys (cond->> all-keys
+                     (= type :xtql) (sort table-order))]
       [:table {:class "table-auto w-full"}
        [:thead
         [:tr {:class "border-b"}
