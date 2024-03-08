@@ -44,7 +44,7 @@ Resources:
       LaunchType: 'FARGATE'
 
       DesiredCount: 1
-      HealthCheckGracePeriodSeconds: 60
+      HealthCheckGracePeriodSeconds: 120
 
       NetworkConfiguration:
         AwsvpcConfiguration:
