@@ -196,7 +196,7 @@
          (for [k all-keys]
            ^{:key k}
            [:th {:class "text-left p-4"}
-            k])]]
+            (-> k symbol str)])]]
        [:tbody
         (for [[i row] (map-indexed vector results)]
           ^{:key i}
@@ -205,7 +205,8 @@
              ^{:key k}
              [:td {:class "text-left p-4"}
               (let [value (get row k)]
-                (if (map? value)
+                (if (and (not (string? value))
+                         (seqable? value))
                   (case type
                     :xtql [highlight-code {:language "clojure"}
                            (pr-str value)]
@@ -252,17 +253,19 @@
         [:<>
          [:div {:class "flex-1 flex flex-col"}
           [:h2 "Transactions:"]
-          [:div {:class "grow"}
+          ; NOTE: The min-h-0 somehow makes sure the editor doesn't
+          ;       overflow the flex container
+          [:div {:class "grow min-h-0"}
            [editor {:source @(rf/subscribe [:txs])
                     :change-callback #(rf/dispatch [:set-txs %])}]]]
          [:div {:class "flex-1 flex flex-col"}
           [:h2 "Query:"]
-          [:div {:class "grow"}
+          [:div {:class "grow min-h-0"}
            [editor {:source @(rf/subscribe [:query])
                     :change-callback #(rf/dispatch [:set-query %])}]]]])]
      [:section {:class "h-1/2 flex flex-col"}
       [:h2 "Results:"]
-      [:div {:class "grow border p-2 overflow-auto"}
+      [:div {:class "grow min-h-0 border p-2 overflow-auto"}
        (if @(rf/subscribe [:twirly?])
          [spinner]
          (let [{:keys [results failure]} @(rf/subscribe [:results-or-failure])]
