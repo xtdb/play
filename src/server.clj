@@ -2,7 +2,6 @@
   (:require [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [clojure.core.match :refer [match]]
             [integrant.core :as ig]
             [muuntaja.core :as m]
             [reitit.coercion.spec :as rcs]
@@ -14,14 +13,13 @@
             [ring.adapter.jetty :as jetty]
             [ring.middleware.params :as params]
             [ring.util.response :as response]
-            [xtdb.error :as err]
             [xtdb.api :as xt]
-            [xtdb.node :as xtn]))
+            [xtdb.node :as xtn]
+            [hiccup.page :as h]))
 
-(s/def ::txs string?) ; Always EDN
-(s/def ::query string?) ; Either XTQL or SQL
+(s/def ::txs string?)
+(s/def ::query string?)
 (s/def ::db-run (s/keys :req-un [::txs ::query]))
-
 
 (defn- handle-ex-info [ex req]
   {:status 400,
@@ -37,13 +35,37 @@
     {xtdb.IllegalArgumentException handle-ex-info
      xtdb.RuntimeException handle-ex-info})))
 
+(def xt-version
+  (-> (slurp "deps.edn")
+      (edn/read-string)
+      (get-in [:deps 'com.xtdb/xtdb-core :mvn/version])))
+(assert (string? xt-version) "xt-version not present")
+
+(def index
+  (h/html5
+   [:head
+    [:meta {:charset "utf-8"}]
+    [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
+    [:meta {:name "description" :content ""}]
+    [:link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"}]
+    [:link {:rel "stylesheet" :type "text/css" :href "/public/css/main.css"}]
+    [:script {:src "https://cdn.tailwindcss.com"}]
+    [:title "XT Fiddle"]]
+   [:body
+    [:div {:id "app"}]
+    [:script {:type "text/javascript" :src "/public/js/compiled/app.js"}]
+    [:script {:type "text/javascript"}
+     (str "var xt_version = '" xt-version "';")]
+    [:script {:type "text/javascript"}
+     "xt_fiddle.client.init()"]]))
+
 (defn router
   []
   (ring/router
    [["/"
      {:get {:summary "Fetch main page"
             :handler (fn [_request]
-                       (-> (response/resource-response "public/index.html")
+                       (-> (response/response index)
                            (response/content-type "text/html")))}}]
 
     ["/status"
@@ -55,11 +77,10 @@
      {:post {:summary "Run transactions + a query"
              :parameters {:body ::db-run}
              :handler (fn [request]
-                        (let [{:keys [txs query] :as body} (get-in request [:parameters :body])
+                        (let [{:keys [txs query]} (get-in request [:parameters :body])
                               ;; TODO: Filter for only the reader required?
                               txs (edn/read-string {:readers *data-readers*} txs)
                               query (edn/read-string {:readers *data-readers*} query)]
-                          #_(log/info :requst-data {:txs txs :query query})
                           (try
                             (with-open [node (xtn/start-node {})]
                               (xt/submit-tx node txs)
@@ -69,10 +90,9 @@
                             (catch Exception e
                               (log/warn :submit-error {:e e})
                               (throw e)))))}}]
-    ;; TODO put static resources under path without conflicts
-    ["/*" (ring/create-resource-handler)]]
-   {:conflicts (constantly nil)
-    :exception pretty/exception
+
+    ["/public/*" (ring/create-resource-handler)]]
+   {:exception pretty/exception
     :data {:coercion rcs/coercion
            :muuntaja m/instance
            :middleware [params/wrap-params
@@ -84,6 +104,10 @@
 
 (defn start
   [{:keys [join port] :or {port 8000}}]
+  ; NOTE: This ensure xtdb is warmed up before starting the server
+  ;       Otherwise, the first few requests will fail
+  (with-open [node (xtn/start-node {})]
+    (xt/status node))
   (let [server (jetty/run-jetty (ring/ring-handler
                                  (router)
                                  (ring/routes
@@ -98,44 +122,3 @@
 
 (defmethod ig/halt-key! ::server [_ server]
   (.stop server))
-
-(comment
-  (def server (start {:join false}))
-  (do
-    (.stop server)
-    (def server (start {:join false})))
-
-  (require '[clojure.java.browse :as browse])
-  (browse/browse-url "http://localhost:8000")
-
-  ;; testing the db-run route
-  (require '[hato.client :as client])
-
-  ;; XTQL
-  (def txs (pr-str "[(xt/put :docs {:xt/id 1 :foo \"bar\"})]"))
-  (def query (pr-str '(from :docs [xt/id foo])))
-
-  (-> (client/request {:accept :json
-                       :as :string
-                       :request-method :post
-                       :content-type :json
-                       :form-params {:txs txs :query query}
-                       :url "http://localhost:8000/db-run"
-                       :throw-exceptions? false} {})
-      :body)
-  ;; => "[{\"foo\":\"bar\",\"xt/id\":1}]"
-
-  ;; SQL
-  (def txs ["INSERT INTO users (xt$id, name) VALUES ('jms', 'James'), ('hak', 'Håkan')"])
-  (def query "SELECT * FROM users")
-
-  (-> (client/request {:accept :json
-                       :as :string
-                       :request-method :post
-                       :content-type :json
-                       :form-params {:txs txs :query query}
-                       :url "http://localhost:8000/db-run"
-                       :throw-exceptions? false} {})
-      :body))
-
-
