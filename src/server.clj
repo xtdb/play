@@ -37,13 +37,37 @@
     {xtdb.IllegalArgumentException handle-ex-info
      xtdb.RuntimeException handle-ex-info})))
 
+(def xt-version
+  (-> (slurp "deps.edn")
+      (edn/read-string)
+      (get-in [:deps 'com.xtdb/xtdb-core :mvn/version])))
+(assert (string? xt-version) "xt-version not present")
+
+(def index
+  (h/html5
+   [:head
+    [:meta {:charset "utf-8"}]
+    [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
+    [:meta {:name "description" :content ""}]
+    [:link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"}]
+    [:link {:rel "stylesheet" :type "text/css" :href "/public/css/main.css"}]
+    [:script {:src "https://cdn.tailwindcss.com"}]
+    [:title "XT Fiddle"]]
+   [:body
+    [:div {:id "app"}]
+    [:script {:type "text/javascript" :src "/public/js/compiled/app.js"}]
+    [:script {:type "text/javascript"}
+     (str "var xt_version = '" xt-version "';")]
+    [:script {:type "text/javascript"}
+     "xt_fiddle.client.init()"]]))
+
 (defn router
   []
   (ring/router
    [["/"
      {:get {:summary "Fetch main page"
             :handler (fn [_request]
-                       (-> (response/resource-response "public/index.html")
+                       (-> (response/response index)
                            (response/content-type "text/html")))}}]
 
     ["/status"

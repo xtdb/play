@@ -36,10 +36,11 @@
 (rf/reg-event-fx
   :app/init
   [(rf/inject-cofx ::query-params/get)]
-  (fn [{:keys [query-params]} _]
+  (fn [{:keys [query-params]} [_ xt-version]]
     (let [{:keys [type txs query]} query-params
           type (if type (keyword type) :sql)]
-      {:db {:type type
+      {:db {:version xt-version
+            :type type
             :txs (if txs
                    (js/atob txs)
                    (default-txs type))
@@ -50,7 +51,8 @@
 (rf/reg-event-fx
   :share
   (fn [{:keys [db]}]
-    {::query-params/set {:type (name (:type db))
+    {::query-params/set {:version (:version db)
+                         :type (name (:type db))
                          :txs (js/btoa (:txs db))
                          :query (js/btoa (:query db))}}))
 
@@ -83,6 +85,10 @@
 (rf/reg-sub
   :query
   :-> :query)
+
+(rf/reg-sub
+  :version
+  :-> :version)
 
 (rf/reg-sub
   :app/loading
@@ -233,6 +239,8 @@
      [language-dropdown]
      [button {:on-click #(rf/dispatch [:share])}
       [title "Share"]]
+     [:span {:class "text-sm text-gray-400"}
+      @(rf/subscribe [:version])]
      [:div {:class "flex-grow"}]
      [button {:on-click #(rf/dispatch [:db-run])}
       [title "Run!"]]]]
@@ -273,7 +281,7 @@
   (log/info :start "start")
   (hljs/registerLanguage "clojure" hljs-clojure)
   (hljs/registerLanguage "json" hljs-json)
-  (rf/dispatch-sync [:app/init])
+  (rf/dispatch-sync [:app/init js/xt_version])
   (reagent.dom/render [app] (js/document.getElementById "app")))
 
 (defn ^:export init []
