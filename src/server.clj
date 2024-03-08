@@ -69,10 +69,9 @@
                             (catch Exception e
                               (log/warn :submit-error {:e e})
                               (throw e)))))}}]
-    ;; TODO put static resources under path without conflicts
-    ["/*" (ring/create-resource-handler)]]
-   {:conflicts (constantly nil)
-    :exception pretty/exception
+
+    ["/public/*" (ring/create-resource-handler)]]
+   {:exception pretty/exception
     :data {:coercion rcs/coercion
            :muuntaja m/instance
            :middleware [params/wrap-params

@@ -22,7 +22,7 @@
 
 
    :output-dir "resources/public/js/compiled"
-   :asset-path "/js/compiled"
+   :asset-path "/public/js/compiled"
    :dev        {:compiler-options {:devcards true}}
    :release    {:compiler-options {:warnings-as-errors true
                                    :warnings {:redef-in-file false}
