@@ -104,6 +104,10 @@
 
 (defn start
   [{:keys [join port] :or {port 8000}}]
+  ; NOTE: This ensure xtdb is warmed up before starting the server
+  ;       Otherwise, the first few requests will fail
+  (with-open [node (xtn/start-node {})]
+    (xt/status node))
   (let [server (jetty/run-jetty (ring/ring-handler
                                  (router)
                                  (ring/routes
