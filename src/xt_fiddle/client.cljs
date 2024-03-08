@@ -196,7 +196,7 @@
          (for [k all-keys]
            ^{:key k}
            [:th {:class "text-left p-4"}
-            k])]]
+            (-> k symbol str)])]]
        [:tbody
         (for [[i row] (map-indexed vector results)]
           ^{:key i}
