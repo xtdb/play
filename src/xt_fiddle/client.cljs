@@ -174,8 +174,13 @@
      [:div {:class "bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4"}
       "Are you missing a ';' between statements?"])
    [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-4"}
-    [:p {:class "font-bold"} exception]
-    [:p message]
+    [:p {:class "font-bold"} (str "Error: " exception)]
+    [:p {:class "whitespace-pre-wrap font-mono"}
+     (->> (str/split message #"(?:\r\n|\r|\n)")
+          (map #(do [:span %]))
+          (interpose [:br]))]
+    [:p {:class "pt-2 font-semibold"}
+     "Data:"]
     [:p (pr-str data)]]])
 
 (defn table-order [a b]
