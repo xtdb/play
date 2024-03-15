@@ -21,19 +21,26 @@
 (s/def ::query string?)
 (s/def ::db-run (s/keys :req-un [::txs ::query]))
 
-(defn- handle-ex-info [ex req]
-  {:status 400,
+(defn- handle-client-error [ex _]
+  {:status 400
    :body {:message (ex-message ex)
           :exception (.getClass ex)
-          :data (ex-data ex)
-          :uri (:uri req)}})
+          :data (ex-data ex)}})
+
+(defn- handle-other-error [ex _]
+  {:status 500
+   :body {:message (ex-message ex)
+          :exception (.getClass ex)
+          :data (ex-data ex)}})
 
 (def exception-middleware
   (exception/create-exception-middleware
    (merge
     exception/default-handlers
-    {xtdb.IllegalArgumentException handle-ex-info
-     xtdb.RuntimeException handle-ex-info})))
+    {xtdb.IllegalArgumentException handle-client-error
+     xtdb.RuntimeException handle-client-error
+     clojure.lang.ExceptionInfo handle-client-error
+     ::exception/default handle-other-error})))
 
 (def xt-version
   (-> (slurp "deps.edn")
