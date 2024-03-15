@@ -176,9 +176,11 @@
      (->> (str/split message #"(?:\r\n|\r|\n)")
           (map #(do [:span %]))
           (interpose [:br]))]
-    [:p {:class "pt-2 font-semibold"}
-     "Data:"]
-    [:p (pr-str data)]]])
+    (when (seq data)
+      [:<>
+       [:p {:class "pt-2 font-semibold"}
+        "Data:"]
+       [:p (pr-str data)]])]])
 
 (defn table-order [a b]
   (cond
