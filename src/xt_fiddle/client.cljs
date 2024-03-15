@@ -250,7 +250,7 @@
 
    ;; overflow-hidden fixes a bug where if an editor would have content that goes off the
    ;; screen the whole page would scroll.
-   [:div {:class "container mx-auto flex-grow overflow-hidden"}
+   [:div {:class "mx-4 flex-grow overflow-hidden"}
     [:div {:class "h-full flex flex-col gap-2 py-2"}
      [:section {:class "h-1/2 flex gap-2"}
       (let [editor (case @(rf/subscribe [:get-type])
