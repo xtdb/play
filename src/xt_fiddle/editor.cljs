@@ -72,7 +72,7 @@
 ;;       I can't think of a way around this right now :/
 ;;       I'm going to "fix" it by trying to make sure this doesn't happen
 (defn editor [{:keys [extensions]}]
-  (fn [{:keys [source change-callback]}]
+  (fn [{:keys [source change-callback] my-class :class}]
     (r/with-let [!view (r/atom nil)
                  ; NOTE: This must be defined in the with-let
                  ;       If put under :ref then it's called every time
@@ -88,7 +88,7 @@
                               (reset! !view (make-view
                                              {:parent el
                                               :state state})))))]
-      [:div {:class "h-full border overflow-scroll"
+      [:div {:class my-class
              :ref mount!}]
       (finally
         (j/call @!view :destroy)))))

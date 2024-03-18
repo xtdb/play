@@ -261,12 +261,14 @@
           ; NOTE: The min-h-0 somehow makes sure the editor doesn't
           ;       overflow the flex container
           [:div {:class "grow min-h-0"}
-           [editor {:source @(rf/subscribe [:txs])
+           [editor {:class "border h-full"
+                    :source @(rf/subscribe [:txs])
                     :change-callback #(rf/dispatch [:set-txs %])}]]]
          [:div {:class "flex-1 flex flex-col"}
           [:h2 "Query:"]
           [:div {:class "grow min-h-0"}
-           [editor {:source @(rf/subscribe [:query])
+           [editor {:class "border h-full"
+                    :source @(rf/subscribe [:query])
                     :change-callback #(rf/dispatch [:set-query %])}]]]])]
      [:section {:class "h-1/2 flex flex-col"}
       [:h2 "Results:"]
