@@ -211,14 +211,11 @@
              ^{:key k}
              [:td {:class "text-left p-4"}
               (let [value (get row k)]
-                (if (and (not (string? value))
-                         (seqable? value))
-                  (case type
-                    :xtql [highlight-code {:language "clojure"}
-                           (pr-str value)]
-                    :sql [highlight-code {:language "json"}
-                          (js/JSON.stringify (clj->js value))])
-                  value))])])]])))
+                (case type
+                  :xtql [highlight-code {:language "clojure"}
+                         (pr-str value)]
+                  :sql [highlight-code {:language "json"}
+                        (js/JSON.stringify (clj->js value))]))])])]])))
 
 (defn page-spinner []
   [:div {:class "fixed flex items-center justify-center h-screen w-screen bg-white/80 z-50"}
