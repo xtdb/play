@@ -109,14 +109,13 @@
         (assoc :failure response))))
 
 (defn encode-txs [txs type]
-  (str "["
-       (case type
-         :sql (->> (str/split txs #";")
-                   (remove str/blank?)
-                   (map #(str [:sql %]))
-                   str/join)
-         :xtql txs)
-       "]"))
+  (case type
+    :sql (->> (str/split txs #";")
+              (remove str/blank?)
+              (map #(do [:sql %]))
+              (vec)
+              (str))
+    :xtql (str "[" txs "]")))
 
 (defn encode-query [query type]
   (case type
