@@ -6,6 +6,7 @@
   ;; XTDB dependencies
   com.xtdb/xtdb-api {:mvn/version "2.0.0-SNAPSHOT"}
   com.xtdb/xtdb-core {:mvn/version "2.0.0-SNAPSHOT"}
+  com.xtdb.labs/xtdb-pgwire-server {:mvn/version "2.0.0-SNAPSHOT"}
 
   ;; Webserver dependencies
   metosin/reitit {:mvn/version "0.6.0"}

@@ -1,5 +1,5 @@
 (ns user
-  (:require [server]
+  (:require [main]
             [clojure.java.browse :as browse]
             [clojure.java.io :as io]
             [clojure.tools.namespace.repl :as repl]
@@ -14,8 +14,7 @@
   []
   (watch-deps/start! {:aliases [:dev :test]}))
 
-
-(integrant.repl/set-prep! #(ig/prep {:server/server {:join false :port 8000}}))
+(igr/set-prep! #(ig/prep main/system))
 
 (def go! go)
 
