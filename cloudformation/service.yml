@@ -29,6 +29,7 @@ Resources:
           Essential: true
           PortMappings:
             - ContainerPort: 8000
+            - ContainerPort: 5432
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -56,8 +57,12 @@ Resources:
             - '{{resolve:ssm:xt-fiddle_private-subnet-2}}'
       LoadBalancers:
         - ContainerName: xt-fiddle
-          ContainerPort: '8000'
-          TargetGroupArn: '{{resolve:ssm:xt-fiddle_target-group-arn}}'
+          ContainerPort: 8000
+          TargetGroupArn: '{{resolve:ssm:xt-fiddle_http-target-group-arn}}'
+
+        - ContainerName: xt-fiddle
+          ContainerPort: 5432
+          TargetGroupArn: '{{resolve:ssm:xt-fiddle_pgwire-target-group-arn}}'
 
   SSMECSService:
     Type: AWS::SSM::Parameter

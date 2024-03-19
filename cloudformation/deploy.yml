@@ -154,8 +154,8 @@ Resources:
       HostedZoneId: !Ref HostedZoneId
       Type: 'A'
       AliasTarget:
-        DNSName: !GetAtt ECSALB.DNSName
-        HostedZoneId: !GetAtt ECSALB.CanonicalHostedZoneID
+        DNSName: !GetAtt HttpEcsAlb.DNSName
+        HostedZoneId: !GetAtt HttpEcsAlb.CanonicalHostedZoneID
         EvaluateTargetHealth: false
 
   Certificate:
@@ -172,10 +172,21 @@ Resources:
             - Domain: !Ref HostedZoneName
           HostedZoneId: !Ref HostedZoneId
 
+  PgwireDomainRecord:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Name: !Sub
+        - 'pg-fiddle.${Domain}.'
+        - Domain: !Ref HostedZoneName
+      HostedZoneId: !Ref HostedZoneId
+      Type: 'A'
+      AliasTarget:
+        DNSName: !GetAtt PgwireEcsLb.DNSName
+        HostedZoneId: !GetAtt PgwireEcsLb.CanonicalHostedZoneID
+        EvaluateTargetHealth: false
 
-  # >> Load Balancer
+  # >> Security Group
 
-  # TODO: Rename
   SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -190,11 +201,14 @@ Resources:
           IpProtocol: tcp
           FromPort: 443
           ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
       SecurityGroupEgress:
         - CidrIp: 0.0.0.0/0
           IpProtocol: -1
 
-  # TODO: Is this needed?
   SelfIngressAllowRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -202,10 +216,12 @@ Resources:
       IpProtocol: -1
       SourceSecurityGroupId: !Ref SecurityGroup
 
-  ECSALB:
+  # >> HTTP Load Balancer
+
+  HttpEcsAlb:
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
-      Name: ECSALB
+      Name: HttpEcsAlb
       Type: application
       Scheme: internet-facing
       Subnets:
@@ -214,11 +230,11 @@ Resources:
       SecurityGroups:
         - !Ref SecurityGroup
 
-  ECSTargetGroup:
+  HttpEcsTargetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
-    DependsOn: ECSALB
+    DependsOn: HttpEcsAlb
     Properties:
-      Name: ECSTargetGroup
+      Name: HttpEcsTargetGroup
       Port: 8000
       Protocol: HTTP
       VpcId: !Ref VPC
@@ -231,18 +247,18 @@ Resources:
       HealthCheckPath: /status
       HealthCheckTimeoutSeconds: 5
 
-  SSMECSTargetGroup:
+  HttpSsmEcsTargetGroup:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: 'xt-fiddle_target-group-arn'
-      Value: !Ref ECSTargetGroup
+      Name: 'xt-fiddle_http-target-group-arn'
+      Value: !Ref HttpEcsTargetGroup
 
   # Redirect all HTTP traffic to HTTPS
-  HTTPALBListener:
+  HttpAlbListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
-      LoadBalancerArn: !Ref ECSALB
+      LoadBalancerArn: !Ref HttpEcsAlb
       Port: '80'
       Protocol: HTTP
 
@@ -254,12 +270,12 @@ Resources:
             StatusCode: HTTP_301
 
   # Terminate TLS & forward all traffic to the container
-  HTTPSALBListener:
+  HttpsAlbListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
       Port: '443'
       Protocol: HTTPS
-      LoadBalancerArn: !Ref ECSALB
+      LoadBalancerArn: !Ref HttpEcsAlb
 
       SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
       Certificates:
@@ -267,8 +283,57 @@ Resources:
 
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref ECSTargetGroup
+          TargetGroupArn: !Ref HttpEcsTargetGroup
 
+  # >> Pgwire Load Balancer
+
+  PgwireEcsLb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: PgwireEcsLb
+      Type: network
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnetOne
+        - !Ref PublicSubnetTwo
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  PgwireEcsTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: PgwireEcsLb
+    Properties:
+      Name: PgwireEcsTargetGroup
+      Port: 5432
+      Protocol: TCP
+      VpcId: !Ref VPC
+      TargetType: ip
+
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /status
+      HealthCheckPort: 8000
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
+
+  PgwireLbListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref PgwireEcsLb
+      Port: 5432
+      Protocol: TCP
+
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref PgwireEcsTargetGroup
+
+  PgwireSsmEcsTargetGroup:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-fiddle_pgwire-target-group-arn'
+      Value: !Ref PgwireEcsTargetGroup
 
   # >> ECS Service
   # The rest is in service.yml so it can be deployed by github
@@ -283,6 +348,10 @@ Resources:
           IpProtocol: tcp
           FromPort: 8000
           ToPort: 8000
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
       SecurityGroupEgress:
         - CidrIp: 0.0.0.0/0
           IpProtocol: -1
