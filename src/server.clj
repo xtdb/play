@@ -1,5 +1,6 @@
 (ns server
   (:require [clojure.edn :as edn]
+            [clojure.instant :refer [read-instant-date]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [integrant.core :as ig]
@@ -17,9 +18,11 @@
             [xtdb.node :as xtn]
             [hiccup.page :as h]))
 
+(s/def ::system-time (s/nilable string?))
 (s/def ::txs string?)
+(s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs])))
 (s/def ::query string?)
-(s/def ::db-run (s/keys :req-un [::txs ::query]))
+(s/def ::db-run (s/keys :req-un [::tx-batches ::query]))
 
 (defn- handle-client-error [ex _]
   {:status 400
@@ -64,7 +67,46 @@
     [:script {:type "text/javascript"}
      (str "var xt_version = '" xt-version "';")]
     [:script {:type "text/javascript"}
-     "xt_fiddle.client.init()"]]))
+     "xt_fiddle.app.init()"]]))
+
+
+(comment
+  (with-open [node (xtn/start-node {})]
+    (doseq [st [#inst "2022" #inst "2021"]]
+      (let [tx (xt/submit-tx node [] {:system-time st})
+            results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
+                          {:basis {:at-tx tx}
+                           :args {:tx-id (:tx-id tx)}})]
+        (when-let [error (-> results first :xt/error)]
+          (throw (ex-info "Transaction error" {:error error})))))))
+
+(defn run-handler [request]
+  (let [{:keys [tx-batches query]} (get-in request [:parameters :body])
+        ;; TODO: Filter for only the readers required?
+        read-edn (partial edn/read-string {:readers *data-readers*})
+        tx-batches (->> tx-batches
+                        (map #(update % :system-time (fn [s] (when s (read-instant-date s)))))
+                        (map #(update % :txs read-edn)))
+        query (read-edn query)]
+    (try
+      (with-open [node (xtn/start-node {})]
+        ;; Run transactions
+        (doseq [{:keys [system-time txs]} tx-batches]
+          (let [tx (xt/submit-tx node txs {:system-time system-time})
+                results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
+                              {:basis {:at-tx tx}
+                               :args {:tx-id (:tx-id tx)}})]
+            ;; If any transaction fails, throw the error
+            (when-let [error (-> results first :xt/error)]
+              (throw error))))
+        ;; Run query
+        (let [res (xt/q node query (when (string? query)
+                                     {:key-fn :snake-case-string}))]
+          {:status 200
+           :body res}))
+      (catch Exception e
+        (log/warn :submit-error {:e e})
+        (throw e)))))
 
 (defn router
   []
@@ -83,21 +125,7 @@
     ["/db-run"
      {:post {:summary "Run transactions + a query"
              :parameters {:body ::db-run}
-             :handler (fn [request]
-                        (let [{:keys [txs query]} (get-in request [:parameters :body])
-                              ;; TODO: Filter for only the reader required?
-                              txs (edn/read-string {:readers *data-readers*} txs)
-                              query (edn/read-string {:readers *data-readers*} query)]
-                          (try
-                            (with-open [node (xtn/start-node {})]
-                              (xt/submit-tx node txs)
-                              (let [res (xt/q node query (when (string? query)
-                                                           {:key-fn :snake-case-string}))]
-                                {:status 200
-                                 :body res}))
-                            (catch Exception e
-                              (log/warn :submit-error {:e e})
-                              (throw e)))))}}]
+             :handler #'run-handler}}]
 
     ["/public/*" (ring/create-resource-handler)]]
    {:exception pretty/exception

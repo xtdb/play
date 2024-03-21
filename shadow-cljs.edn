@@ -17,7 +17,7 @@
  {:app
   {:target     :browser
 
-   :modules {:app {:entries [xt-fiddle.client]}}
+   :modules {:app {:entries [xt-fiddle.app]}}
                    ;; :preloads [devtools.preload]
 
 
