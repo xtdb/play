@@ -62,8 +62,12 @@
 
 ;; >> Subscriptions
 
-(rf/reg-sub ::id->batch
-  :-> ::id->batch)
+(rf/reg-sub ::id-batch-pairs
+  (fn [db _]
+    (let [id->batch (::id->batch db)
+          lst (::list db)]
+      (->> lst
+           (mapv (fn [id] [id (id->batch id)]))))))
 
 
 

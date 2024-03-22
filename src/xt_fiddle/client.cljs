@@ -183,7 +183,7 @@
    ; NOTE: The min-h-0 somehow makes sure the editor doesn't
    ;       overflow the flex container
    [:div {:class "grow min-h-0 overflow-y-auto flex flex-col gap-2"}
-    (let [tx-batches @(rf/subscribe [::tx-batch/id->batch])]
+    (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])]
       (if (= 1 (count tx-batches))
         (let [[id batch] (first tx-batches)]
           [single-transaction {:editor editor
