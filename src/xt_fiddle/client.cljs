@@ -12,8 +12,8 @@
             ["@heroicons/react/24/solid" :refer [ArrowUturnLeftIcon
                                                  PencilIcon
                                                  PlayIcon
-                                                 ShareIcon
-                                                 XMarkIcon]]))
+                                                 XMarkIcon]]
+            ["@heroicons/react/24/outline" :refer [BookmarkIcon]]))
 
 (rf/reg-event-fx
   :share
@@ -128,9 +128,10 @@
     [:span {:class "text-sm text-gray-400"}
      @(rf/subscribe [:version])]
     [:div {:class "flex-grow"}]
-    [:div {:class "p-2 hover:bg-gray-300 cursor-pointer"
+    [:div {:class "p-2 hover:bg-gray-300 cursor-pointer flex flex-row gap-1 items-center"
            :on-click #(rf/dispatch [:share])}
-     [:> ShareIcon {:class "h-5 w-5"}]]
+     "Save as URL"
+     [:> BookmarkIcon {:class "h-5 w-5"}]]
     [button {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"
              :on-click #(rf/dispatch [::run/run])}
      [:div {:class "flex flex-row gap-1 items-center"}
