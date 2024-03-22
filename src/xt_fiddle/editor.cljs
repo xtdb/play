@@ -1,6 +1,6 @@
 (ns xt-fiddle.editor
   (:require ["@codemirror/autocomplete" :refer [autocompletion]]
-            ["@codemirror/commands" :refer [defaultKeymap history historyKeymap]]
+            ["@codemirror/commands" :refer [defaultKeymap history historyKeymap indentWithTab]]
             ["@codemirror/language" :refer [foldGutter syntaxHighlighting defaultHighlightStyle]]
             ["@codemirror/lang-sql" :refer [sql PostgreSQL]]
             ["@codemirror/state" :refer [EditorState]]
@@ -59,7 +59,7 @@
        (foldGutter)
        (lineNumbers)
        (.. EditorState -allowMultipleSelections (of true))
-       (.of view/keymap (js-concat defaultKeymap historyKeymap))
+       (.of view/keymap (js-concat defaultKeymap historyKeymap [indentWithTab]))
        ;; IMO too annoying to use
        #_(autocompletion)
        (sql #js{:dialect PostgreSQL
