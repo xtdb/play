@@ -120,7 +120,10 @@
 (defn header []
   [:header {:class "bg-gray-200 py-2"}
    [:div {:class "container mx-auto flex items-center space-x-4"}
-    [title "XT fiddle"]
+    [:div {:class "flex flex-row items-center gap-1"}
+     [:img {:class "h-8"
+            :src "/public/images/xtdb-full-logo.svg"}]
+     [title "Fiddle"]]
     [language-dropdown]
     [:span {:class "text-sm text-gray-400"}
      @(rf/subscribe [:version])]
