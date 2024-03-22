@@ -1,8 +1,8 @@
 (ns xt-fiddle.editor
   (:require ["@codemirror/autocomplete" :refer [autocompletion]]
-            ["@codemirror/commands" :refer [history historyKeymap]]
+            ["@codemirror/commands" :refer [defaultKeymap history historyKeymap]]
             ["@codemirror/language" :refer [foldGutter syntaxHighlighting defaultHighlightStyle]]
-            ["@codemirror/lang-sql" :as sql :refer [PostgreSQL StandardSQL keywordCompletionSource]]
+            ["@codemirror/lang-sql" :refer [sql PostgreSQL]]
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :as view :refer [EditorView lineNumbers]]
             [applied-science.js-interop :as j]
@@ -37,30 +37,37 @@
                                        (when (.-changes update)
                                          (callback (.. update -state -doc toString))))))
 
+(defn js-concat [& colls]
+  (apply array (apply concat colls)))
+
 (defonce clj-extensions
   #js [theme
        (history)
-       (syntaxHighlighting defaultHighlightStyle)
        (view/drawSelection)
+       (syntaxHighlighting defaultHighlightStyle)
        (foldGutter)
        (lineNumbers)
        (.. EditorState -allowMultipleSelections (of true))
        cm-clj/default-extensions
-       (.of view/keymap cm-clj/complete-keymap)
-       (.of view/keymap historyKeymap)])
+       (.of view/keymap (js-concat cm-clj/complete-keymap historyKeymap))])
 
 (def sql-extensions
   #js [theme
        (history)
-       (syntaxHighlighting defaultHighlightStyle)
        (view/drawSelection)
+       (syntaxHighlighting defaultHighlightStyle #js{:fallback true})
        (foldGutter)
        (lineNumbers)
        (.. EditorState -allowMultipleSelections (of true))
-       (.of view/keymap historyKeymap)
-       StandardSQL
-       (.. StandardSQL -language -data (of #js {:autocomplete (keywordCompletionSource StandardSQL true)}))
-       #_(autocompletion #js {:override #js [(keywordCompletionSource PostgreSQL true)]})])
+       (.of view/keymap (js-concat defaultKeymap historyKeymap))
+       ;; IMO too annoying to use
+       #_(autocompletion)
+       (sql #js{:dialect PostgreSQL
+                #_#_:schema #js{"xt$txs" #js["xt$id" "xt$committed?"
+                                             "xt$error" "xt$tx_time"
+                                             "xt$valid_from" "xt$valid_to"
+                                             "xt$system_from" "xt$system_to"]}
+                :upperCaseKeywords true})])
 
 (defn make-view [{:keys [state parent]}]
   (new EditorView #js{:state state :parent parent}))
