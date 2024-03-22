@@ -94,8 +94,7 @@
         (doseq [{:keys [system-time txs]} tx-batches]
           (let [tx (xt/submit-tx node txs {:system-time system-time})
                 results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
-                              {:basis {:at-tx tx}
-                               :args {:tx-id (:tx-id tx)}})]
+                              {:args {:tx-id (:tx-id tx)}})]
             ;; If any transaction fails, throw the error
             (when-let [error (-> results first :xt/error)]
               (throw error))))
