@@ -200,9 +200,10 @@
       (let [{::run/keys [results failure]} @(rf/subscribe [::run/results-or-failure])]
         (if failure
           [display-error failure]
-          (if (empty? results)
-            "No results returned"
-            [display-table results @(rf/subscribe [:get-type])]))))]])
+          (cond
+            (empty? results) "No results returned"
+            (every? empty? results) (str (count results) " empty row(s) returned")
+            :else [display-table results @(rf/subscribe [:get-type])]))))]])
 
 (defn app []
   [:div {:class "flex flex-col h-screen"}
