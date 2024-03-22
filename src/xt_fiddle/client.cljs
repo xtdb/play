@@ -9,7 +9,11 @@
             [clojure.string :as str]
             [lambdaisland.glogi :as log]
             [re-frame.core :as rf]
-            ["@heroicons/react/24/solid" :refer [PencilIcon XMarkIcon ArrowUturnLeftIcon]]))
+            ["@heroicons/react/24/solid" :refer [ArrowUturnLeftIcon
+                                                 PencilIcon
+                                                 PlayIcon
+                                                 ShareIcon
+                                                 XMarkIcon]]))
 
 (rf/reg-event-fx
   :share
@@ -118,13 +122,17 @@
    [:div {:class "container mx-auto flex items-center space-x-4"}
     [title "XT fiddle"]
     [language-dropdown]
-    [button {:on-click #(rf/dispatch [:share])}
-     [title "Share"]]
     [:span {:class "text-sm text-gray-400"}
      @(rf/subscribe [:version])]
     [:div {:class "flex-grow"}]
-    [button {:on-click #(rf/dispatch [::run/run])}
-     [title "Run!"]]]])
+    [:div {:class "p-2 hover:bg-gray-300 cursor-pointer"
+           :on-click #(rf/dispatch [:share])}
+     [:> ShareIcon {:class "h-5 w-5"}]]
+    [button {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"
+             :on-click #(rf/dispatch [::run/run])}
+     [:div {:class "flex flex-row gap-1 items-center"}
+      "Run"
+      [:> PlayIcon {:class "h-5 w-5"}]]]]])
 
 (defn single-transaction [{:keys [editor id]} {:keys [system-time txs]}]
   [:div {:class "h-full flex flex-col"}
