@@ -6,9 +6,10 @@
                open? (r/atom false)
               ; Close the dropdown if the user clicks outside of it
                click-handler (fn [event]
-                               (let [dropdown-elem (js/document.querySelector (str "#" id))]
-                                 (when (not (.contains dropdown-elem (.-target event)))
-                                   (reset! open? false))))
+                               (when @open?
+                                 (let [dropdown-elem (js/document.querySelector (str "#" id))]
+                                   (when (not (.contains dropdown-elem (.-target event)))
+                                     (reset! open? false)))))
                _ (js/window.addEventListener "click" click-handler)]
     [:div {:class "relative inline-block text-left"}
      [:button {:type "button"
