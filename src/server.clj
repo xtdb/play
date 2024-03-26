@@ -14,6 +14,7 @@
             [ring.adapter.jetty :as jetty]
             [ring.middleware.params :as params]
             [ring.util.response :as response]
+            [ring.middleware.cors :refer [wrap-cors]]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]
             [hiccup.page :as h]))
@@ -130,7 +131,10 @@
    {:exception pretty/exception
     :data {:coercion rcs/coercion
            :muuntaja m/instance
-           :middleware [params/wrap-params
+           :middleware [#(wrap-cors %
+                                    :access-control-allow-origin #".*"
+                                    :access-control-allow-methods [:get :put :post :delete])
+                        params/wrap-params
                         muuntaja/format-middleware
                         exception-middleware
                         rrc/coerce-exceptions-middleware
