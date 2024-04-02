@@ -156,7 +156,7 @@
   [:<>
    (for [[id {:keys [system-time txs]}] tx-batches]
      ^{:key id}
-     [:div
+     [:div {:class "flex flex-col min-h-40"}
       [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200"}
        [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
         (if (nil? system-time)
@@ -173,7 +173,7 @@
                                    :on-click #(rf/dispatch [::tx-batch/assoc id :system-time nil])}]])]
        [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
                       :on-click #(rf/dispatch [::tx-batch/delete id])}]]
-      [editor {:class "border"
+      [editor {:class "border flex-grow"
                :source txs
                :change-callback #(rf/dispatch [::tx-batch/assoc id :txs %])}]])])
 
