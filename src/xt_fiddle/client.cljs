@@ -191,9 +191,10 @@
            batch])
         [multiple-transactions {:editor editor}
          tx-batches]))
-    [:button {:class "w-full bg-blue-100 hover:bg-blue-200 text-white font-bold py-1 rounded-full"
-              :on-click #(rf/dispatch [::tx-batch/append tx-batch/blank])}
-     "+"]]])
+    [:div {:class "flex flex-row justify-center"}
+     [:button {:class "w-10 h-10 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 rounded-full"
+               :on-click #(rf/dispatch [::tx-batch/append tx-batch/blank])}
+      "+"]]]])
 
 (defn query [{:keys [editor]}]
   [:div {:class "flex-1 flex flex-col"}
