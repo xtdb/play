@@ -144,16 +144,28 @@
       [:> BookmarkIcon {:class "h-5 w-5"}]]
      [run-button]]]])
 
+(defn reset-system-time-button [id]
+  [:> ArrowUturnLeftIcon {:class "h-5 w-5 cursor-pointer"
+                          :on-click #(rf/dispatch [::tx-batch/assoc id :system-time nil])}])
+
+(defn input-system-time [id system-time]
+  ;; TODO: Show the picker when someone clicks the edit button
+  ;;       https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
+  [:input {:type "date"
+           :value (-> system-time .toISOString (str/split #"T") first)
+           :on-change #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.. % -target -value))])
+           :max (-> (js/Date.) .toISOString (str/split #"T") first)}])
+
+(defn edit-system-time-button [id]
+  [:> PencilIcon {:className "h-5 w-5 cursor-pointer"
+                  :on-click #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.toDateString (js/Date.)))])}])
+
 (defn single-transaction [{:keys [editor id]} {:keys [system-time txs]}]
   [:div {:class "h-full flex flex-col"}
    (when system-time
      [:div {:class "flex flex-row justify-center items-center py-1 px-5 bg-gray-200"}
-      [:input {:type "date"
-               :value (-> system-time .toISOString (str/split #"T") first)
-               :on-change #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.. % -target -value))])
-               :max (-> (js/Date.) .toISOString (str/split #"T") first)}]
-      [:> ArrowUturnLeftIcon {:class "h-5 w-5 cursor-pointer"
-                              :on-click #(rf/dispatch [::tx-batch/assoc id :system-time nil])}]])
+      [input-system-time id system-time]
+      [reset-system-time-button id]])
    [editor {:class "border md:flex-grow min-h-36"
             :source txs
             :change-callback #(rf/dispatch [::tx-batch/assoc id :txs %])}]])
@@ -168,17 +180,10 @@
         (if (nil? system-time)
           [:<>
            [:div "Current Time"]
-           [:> PencilIcon {:className "h-5 w-5 cursor-pointer"
-                           :on-click #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.toDateString (js/Date.)))])}]]
+           [edit-system-time-button id]]
           [:<>
-           ;; TODO: Show the picker once the edit icon has been set.
-           ;;       https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
-           [:input {:type "date"
-                    :value (-> system-time .toISOString (str/split #"T") first)
-                    :on-change #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.. % -target -value))])
-                    :max (-> (js/Date.) .toISOString (str/split #"T") first)}]
-           [:> ArrowUturnLeftIcon {:class "h-5 w-5 cursor-pointer"
-                                   :on-click #(rf/dispatch [::tx-batch/assoc id :system-time nil])}]])]
+           [input-system-time id system-time]
+           [reset-system-time-button id]])]
        [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
                       :on-click #(rf/dispatch [::tx-batch/delete id])}]]
       [editor {:class "border md:flex-grow min-h-36"
