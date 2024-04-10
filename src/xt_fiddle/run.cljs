@@ -13,9 +13,12 @@
               (str))
     :xtql (str "[" txs "]")))
 
+(defn remove-last-semicolon [s]
+  (str/replace s #";\s*$" ""))
+
 (defn encode-query [query type]
   (case type
-    :sql (pr-str query)
+    :sql (-> query remove-last-semicolon pr-str)
     :xtql query))
 
 (rf/reg-event-fx ::run
