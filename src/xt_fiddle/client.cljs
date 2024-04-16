@@ -49,8 +49,8 @@
   :-> :version)
 
 (defn language-dropdown []
-  [dropdown {:items [{:value :xtql :label "XTQL"}
-                     {:value :sql :label "SQL"}]
+  [dropdown {:items [{:value :sql :label "SQL"}
+                     {:value :xtql :label "XTQL"}]
              :selected @(rf/subscribe [:get-type])
              :on-click #(rf/dispatch [:dropdown-selection (:value %)])
              :label (case @(rf/subscribe [:get-type])
