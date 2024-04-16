@@ -61,6 +61,10 @@
     [:link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"}]
     [:link {:rel "stylesheet" :type "text/css" :href "/public/css/main.css"}]
     [:script {:src "https://cdn.tailwindcss.com"}]
+    [:script {:async true
+              :defer true
+              :data-website-id "aabeabcb-ad76-47a4-9b4b-bef3fdc39af4"
+              :src "https://bunseki.juxt.pro/umami.js"}]
     [:title "XT Fiddle"]]
    [:body
     [:div {:id "app"}]
