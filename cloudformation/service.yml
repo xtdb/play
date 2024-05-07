@@ -44,7 +44,7 @@ Resources:
       TaskDefinition: !Ref TaskDefinition
       LaunchType: 'FARGATE'
 
-      DesiredCount: 1
+      DesiredCount: 2
       HealthCheckGracePeriodSeconds: 120
 
       NetworkConfiguration:
