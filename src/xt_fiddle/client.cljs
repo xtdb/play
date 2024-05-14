@@ -2,6 +2,8 @@
   (:require [xt-fiddle.editor :as editor]
             [xt-fiddle.run :as run]
             [xt-fiddle.query-params :as query-params]
+            [xt-fiddle.clipboard :as clipboard]
+            [xt-fiddle.href :as href]
             [xt-fiddle.highlight :as hl]
             [xt-fiddle.tx-batch :as tx-batch]
             [xt-fiddle.query :as query]
@@ -13,11 +15,25 @@
                                                  PencilIcon
                                                  PlayIcon
                                                  XMarkIcon]]
-            ["@heroicons/react/24/outline" :refer [BookmarkIcon]]))
+            ["@heroicons/react/24/outline" :refer [BookmarkIcon
+                                                   CheckCircleIcon]]))
+
+(rf/reg-event-db
+  :share-hide-tick
+  (fn [db _]
+    (dissoc db :share-show-tick)))
 
 (rf/reg-event-fx
   :share
-  (fn [{:keys [db]}]
+  [(rf/inject-cofx ::href/get)]
+  (fn [{:keys [db href]} _]
+    {::clipboard/set {:text href}
+     :db (assoc db :share-show-tick true)
+     :dispatch-later {:ms 800 :dispatch [:share-hide-tick]}}))
+
+(rf/reg-sub
+  :share-show-tick
+  :-> :share-show-tick)
 
 (rf/reg-event-fx
   :update-url
@@ -148,10 +164,19 @@
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown]
      [:div {:class "md:hidden flex-grow"}]
-     [:div {:class "p-2 hover:bg-gray-300 cursor-pointer flex flex-row gap-1 items-center"
-            :on-click #(rf/dispatch [:share])}
-      "Save as URL"
-      [:> BookmarkIcon {:class "h-5 w-5"}]]
+     (let [share-show-tick @(rf/subscribe [:share-show-tick])]
+       [:div {:class (str "p-2 flex flex-row gap-1 items-center"
+                          (when-not share-show-tick
+                            " hover:bg-gray-300 cursor-pointer"))
+              :disabled share-show-tick
+              :on-click #(rf/dispatch-sync [:share])}
+        (if-not share-show-tick
+          [:<>
+           "Save as URL"
+           [:> BookmarkIcon {:class "h-5 w-5"}]]
+          [:<>
+           "Saved!"
+           [:> CheckCircleIcon {:class "h-5 w-5"}]])])
      [run-button]]]])
 
 (defn reset-system-time-button [id]
