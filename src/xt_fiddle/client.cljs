@@ -150,6 +150,21 @@
     "Run"
     [:> PlayIcon {:class "h-5 w-5"}]]])
 
+(defn copy-button []
+  (let [copy-tick @(rf/subscribe [:copy-tick])]
+    [:div {:class (str "p-2 flex flex-row gap-1 items-center select-none"
+                       (when-not copy-tick
+                         " hover:bg-gray-300 cursor-pointer"))
+           :disabled copy-tick
+           :on-click #(rf/dispatch-sync [:copy-url])}
+     (if-not copy-tick
+       [:<>
+        "Copy URL"
+        [:> BookmarkIcon {:class "h-5 w-5"}]]
+       [:<>
+        "Copied!"
+        [:> CheckCircleIcon {:class "h-5 w-5"}]])]))
+
 (defn header []
   [:header {:class "bg-gray-200 py-2 px-4"}
    [:div {:class "container mx-auto flex flex-col md:flex-row items-center gap-1"}
@@ -165,19 +180,7 @@
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown]
      [:div {:class "md:hidden flex-grow"}]
-     (let [copy-tick @(rf/subscribe [:copy-tick])]
-       [:div {:class (str "p-2 flex flex-row gap-1 items-center select-none"
-                          (when-not copy-tick
-                            " hover:bg-gray-300 cursor-pointer"))
-              :disabled copy-tick
-              :on-click #(rf/dispatch-sync [:copy-url])}
-        (if-not copy-tick
-          [:<>
-           "Copy URL"
-           [:> BookmarkIcon {:class "h-5 w-5"}]]
-          [:<>
-           "Copied!"
-           [:> CheckCircleIcon {:class "h-5 w-5"}]])])
+     [copy-button]
      [run-button]]]])
 
 (defn reset-system-time-button [id]
