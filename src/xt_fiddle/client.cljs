@@ -19,21 +19,21 @@
                                                    CheckCircleIcon]]))
 
 (rf/reg-event-db
-  :share-hide-tick
+  :hide-copy-tick
   (fn [db _]
-    (dissoc db :share-show-tick)))
+    (dissoc db :copy-tick)))
 
 (rf/reg-event-fx
-  :share
+  :copy-url
   [(rf/inject-cofx ::href/get)]
   (fn [{:keys [db href]} _]
     {::clipboard/set {:text href}
-     :db (assoc db :share-show-tick true)
-     :dispatch-later {:ms 800 :dispatch [:share-hide-tick]}}))
+     :db (assoc db :copy-tick true)
+     :dispatch-later {:ms 800 :dispatch [:hide-copy-tick]}}))
 
 (rf/reg-sub
-  :share-show-tick
-  :-> :share-show-tick)
+  :copy-tick
+  :-> :copy-tick)
 
 (rf/reg-event-fx
   :update-url
@@ -165,18 +165,18 @@
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown]
      [:div {:class "md:hidden flex-grow"}]
-     (let [share-show-tick @(rf/subscribe [:share-show-tick])]
-       [:div {:class (str "p-2 flex flex-row gap-1 items-center"
-                          (when-not share-show-tick
+     (let [copy-tick @(rf/subscribe [:copy-tick])]
+       [:div {:class (str "p-2 flex flex-row gap-1 items-center select-none"
+                          (when-not copy-tick
                             " hover:bg-gray-300 cursor-pointer"))
-              :disabled share-show-tick
-              :on-click #(rf/dispatch-sync [:share])}
-        (if-not share-show-tick
+              :disabled copy-tick
+              :on-click #(rf/dispatch-sync [:copy-url])}
+        (if-not copy-tick
           [:<>
-           "Save as URL"
+           "Copy URL"
            [:> BookmarkIcon {:class "h-5 w-5"}]]
           [:<>
-           "Saved!"
+           "Copied!"
            [:> CheckCircleIcon {:class "h-5 w-5"}]])])
      [run-button]]]])
 
