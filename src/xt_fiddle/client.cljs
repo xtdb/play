@@ -2,6 +2,8 @@
   (:require [xt-fiddle.editor :as editor]
             [xt-fiddle.run :as run]
             [xt-fiddle.query-params :as query-params]
+            [xt-fiddle.clipboard :as clipboard]
+            [xt-fiddle.href :as href]
             [xt-fiddle.highlight :as hl]
             [xt-fiddle.tx-batch :as tx-batch]
             [xt-fiddle.query :as query]
@@ -13,11 +15,29 @@
                                                  PencilIcon
                                                  PlayIcon
                                                  XMarkIcon]]
-            ["@heroicons/react/24/outline" :refer [BookmarkIcon]]))
+            ["@heroicons/react/24/outline" :refer [BookmarkIcon
+                                                   CheckCircleIcon]]))
+
+(rf/reg-event-db
+  :hide-copy-tick
+  (fn [db _]
+    (dissoc db :copy-tick)))
 
 (rf/reg-event-fx
-  :share
-  (fn [{:keys [db]}]
+  :copy-url
+  [(rf/inject-cofx ::href/get)]
+  (fn [{:keys [db href]} _]
+    {::clipboard/set {:text href}
+     :db (assoc db :copy-tick true)
+     :dispatch-later {:ms 800 :dispatch [:hide-copy-tick]}}))
+
+(rf/reg-sub
+  :copy-tick
+  :-> :copy-tick)
+
+(rf/reg-event-fx
+  :update-url
+  (fn [{:keys [db]} _]
     {::query-params/set {:version (:version db)
                          :type (name (:type db))
                          :txs (tx-batch/param-encode (tx-batch/list db))
@@ -36,6 +56,11 @@
   (fn [db [_ query]]
     (assoc db :query query)))
 
+(rf/reg-event-fx
+  :fx
+  (fn [_ [_ effects]]
+    {:fx effects}))
+
 (rf/reg-sub
   :get-type
   :-> :type)
@@ -52,7 +77,8 @@
   [dropdown {:items [{:value :sql :label "SQL"}
                      {:value :xtql :label "XTQL"}]
              :selected @(rf/subscribe [:get-type])
-             :on-click #(rf/dispatch [:dropdown-selection (:value %)])
+             :on-click #(rf/dispatch [:fx [[:dispatch [:dropdown-selection (:value %)]]
+                                           [:dispatch [:update-url]]]])
              :label (case @(rf/subscribe [:get-type])
                       :xtql "XTQL"
                       :sql "SQL")}])
@@ -124,41 +150,57 @@
     "Run"
     [:> PlayIcon {:class "h-5 w-5"}]]])
 
+(defn copy-button []
+  (let [copy-tick @(rf/subscribe [:copy-tick])]
+    [:div {:class (str "p-2 flex flex-row gap-1 items-center select-none"
+                       (when-not copy-tick
+                         " hover:bg-gray-300 cursor-pointer"))
+           :disabled copy-tick
+           :on-click #(rf/dispatch-sync [:copy-url])}
+     (if-not copy-tick
+       [:<>
+        "Copy URL"
+        [:> BookmarkIcon {:class "h-5 w-5"}]]
+       [:<>
+        "Copied!"
+        [:> CheckCircleIcon {:class "h-5 w-5"}]])]))
+
 (defn header []
   [:header {:class "bg-gray-200 py-2 px-4"}
    [:div {:class "container mx-auto flex flex-col md:flex-row items-center gap-1"}
     [:div {:class "w-full flex flex-row items-center gap-4"}
-     [:div {:class "flex flex-row items-center gap-1"}
-      [:img {:class "h-8"
-             :src "/public/images/xtdb-full-logo.svg"}]
-      [title "Fiddle"]]
+     [:a {:href "/"}
+      [:div {:class "flex flex-row items-center gap-1"}
+       [:img {:class "h-8"
+              :src "/public/images/xtdb-full-logo.svg"}]
+       [title "Fiddle"]]]
      [:span {:class "text-sm text-gray-400"}
       @(rf/subscribe [:version])]]
     [:div {:class "max-md:hidden flex-grow"}]
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown]
      [:div {:class "md:hidden flex-grow"}]
-     [:div {:class "p-2 hover:bg-gray-300 cursor-pointer flex flex-row gap-1 items-center"
-            :on-click #(rf/dispatch [:share])}
-      "Save as URL"
-      [:> BookmarkIcon {:class "h-5 w-5"}]]
+     [copy-button]
      [run-button]]]])
 
 (defn reset-system-time-button [id]
   [:> ArrowUturnLeftIcon {:class "h-5 w-5 cursor-pointer"
-                          :on-click #(rf/dispatch [::tx-batch/assoc id :system-time nil])}])
+                          :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :system-time nil]]
+                                                        [:dispatch [:update-url]]]])}])
 
 (defn input-system-time [id system-time]
   ;; TODO: Show the picker when someone clicks the edit button
   ;;       https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
   [:input {:type "date"
            :value (-> system-time .toISOString (str/split #"T") first)
-           :on-change #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.. % -target -value))])
+           :on-change #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :system-time (js/Date. (.. % -target -value))]]
+                                          [:dispatch [:update-url]]]])
            :max (-> (js/Date.) .toISOString (str/split #"T") first)}])
 
 (defn edit-system-time-button [id]
   [:> PencilIcon {:className "h-5 w-5 cursor-pointer"
-                  :on-click #(rf/dispatch [::tx-batch/assoc id :system-time (js/Date. (.toDateString (js/Date.)))])}])
+                  :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :system-time (js/Date. (.toDateString (js/Date.)))]]
+                                                [:dispatch [:update-url]]]])}])
 
 (defn single-transaction [{:keys [editor id]} {:keys [system-time txs]}]
   [:div {:class "h-full flex flex-col"}
@@ -168,7 +210,8 @@
       [reset-system-time-button id]])
    [editor {:class "border md:flex-grow min-h-36"
             :source txs
-            :change-callback #(rf/dispatch [::tx-batch/assoc id :txs %])}]])
+            :change-callback #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :txs %]]
+                                                 [:dispatch [:update-url]]]])}]])
 
 (defn multiple-transactions [{:keys [editor]} tx-batches]
   [:<>
@@ -185,10 +228,12 @@
            [input-system-time id system-time]
            [reset-system-time-button id]])]
        [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
-                      :on-click #(rf/dispatch [::tx-batch/delete id])}]]
+                      :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/delete id]]
+                                                    [:dispatch [:update-url]]]])}]]
       [editor {:class "border md:flex-grow min-h-36"
                :source txs
-               :change-callback #(rf/dispatch [::tx-batch/assoc id :txs %])}]])])
+               :change-callback #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :txs %]]
+                                                    [:dispatch [:update-url]]]])}]])])
 
 (defn transactions [{:keys [editor]}]
   [:div {:class "mx-4 md:mx-0 md:ml-4 md:flex-1 flex flex-col"}
@@ -206,7 +251,8 @@
          tx-batches]))
     [:div {:class "flex flex-row justify-center"}
      [:button {:class "w-10 h-10 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 rounded-full"
-               :on-click #(rf/dispatch [::tx-batch/append tx-batch/blank])}
+               :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/append tx-batch/blank]]
+                                             [:dispatch [:update-url]]]])}
       "+"]]]])
 
 (defn query [{:keys [editor]}]
@@ -214,7 +260,8 @@
    [:h2 "Query:"]
    [editor {:class "md:flex-grow h-full min-h-36 border"
             :source @(rf/subscribe [:query])
-            :change-callback #(rf/dispatch [:set-query %])}]])
+            :change-callback #(rf/dispatch [:fx [[:dispatch [:set-query %]]
+                                                 [:dispatch [:update-url]]]])}]])
 
 (defn results []
   [:section {:class "md:h-1/2 mx-4 flex flex-1 flex-col"}

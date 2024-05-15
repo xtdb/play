@@ -18,6 +18,10 @@
     (.toString search-params)))
 
 (defn set-query-params [params]
-  (set! (.-search js/window.location) (->query-string params)))
+  (let [url (js/URL. js/window.location.href)]
+    (set! (.-search url) (->query-string params))
+    ;; We replace the history instead of pushing a new state
+    ;; because it's a pain to hook up the back and forward buttons
+    (js/window.history.replaceState "" "" (.toString url))))
 
 (rf/reg-fx ::set set-query-params)
