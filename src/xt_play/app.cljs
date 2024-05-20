@@ -1,13 +1,13 @@
-(ns xt-fiddle.app
+(ns xt-play.app
   (:require [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
             [reagent.dom :as r-dom]
-            [xt-fiddle.query-params :as query-params]
-            [xt-fiddle.highlight :as hl]
-            [xt-fiddle.tx-batch :as tx-batch]
-            [xt-fiddle.query :as query]
-            [xt-fiddle.client :as client]
+            [xt-play.query-params :as query-params]
+            [xt-play.highlight :as hl]
+            [xt-play.tx-batch :as tx-batch]
+            [xt-play.query :as query]
+            [xt-play.client :as client]
             [day8.re-frame.http-fx]))
 
 (glogi-console/install!)

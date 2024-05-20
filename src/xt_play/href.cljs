@@ -1,4 +1,4 @@
-(ns xt-fiddle.href
+(ns xt-play.href
   (:require [re-frame.core :as rf]))
 
 (rf/reg-cofx ::get

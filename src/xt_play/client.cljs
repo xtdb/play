@@ -1,13 +1,13 @@
-(ns xt-fiddle.client
-  (:require [xt-fiddle.editor :as editor]
-            [xt-fiddle.run :as run]
-            [xt-fiddle.query-params :as query-params]
-            [xt-fiddle.clipboard :as clipboard]
-            [xt-fiddle.href :as href]
-            [xt-fiddle.highlight :as hl]
-            [xt-fiddle.tx-batch :as tx-batch]
-            [xt-fiddle.query :as query]
-            [xt-fiddle.dropdown :refer [dropdown]]
+(ns xt-play.client
+  (:require [xt-play.editor :as editor]
+            [xt-play.run :as run]
+            [xt-play.query-params :as query-params]
+            [xt-play.clipboard :as clipboard]
+            [xt-play.href :as href]
+            [xt-play.highlight :as hl]
+            [xt-play.tx-batch :as tx-batch]
+            [xt-play.query :as query]
+            [xt-play.dropdown :refer [dropdown]]
             [clojure.string :as str]
             [lambdaisland.glogi :as log]
             [re-frame.core :as rf]
@@ -173,7 +173,7 @@
       [:div {:class "flex flex-row items-center gap-1"}
        [:img {:class "h-8"
               :src "/public/images/xtdb-full-logo.svg"}]
-       [title "Fiddle"]]]
+       [title "Play"]]]
      [:span {:class "text-sm text-gray-400"}
       @(rf/subscribe [:version])]]
     [:div {:class "max-md:hidden flex-grow"}]

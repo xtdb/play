@@ -1,4 +1,4 @@
-(ns xt-fiddle.query)
+(ns xt-play.query)
 
 ;; >> API
 

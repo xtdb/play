@@ -1,5 +1,5 @@
-(ns xt-fiddle.run
-  (:require [xt-fiddle.tx-batch :as tx-batch]
+(ns xt-play.run
+  (:require [xt-play.tx-batch :as tx-batch]
             [clojure.string :as str]
             [re-frame.core :as rf]
             [ajax.core :as ajax]))

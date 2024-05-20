@@ -1,4 +1,4 @@
-(ns xt-fiddle.query-params
+(ns xt-play.query-params
   (:require [re-frame.core :as rf]))
 
 (defn get-query-params []

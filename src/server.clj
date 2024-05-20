@@ -65,14 +65,14 @@
               :defer true
               :data-website-id "aabeabcb-ad76-47a4-9b4b-bef3fdc39af4"
               :src "https://bunseki.juxt.pro/umami.js"}]
-    [:title "XT Fiddle"]]
+    [:title "XTDB Play"]]
    [:body
     [:div {:id "app"}]
     [:script {:type "text/javascript" :src "/public/js/compiled/app.js"}]
     [:script {:type "text/javascript"}
      (str "var xt_version = '" xt-version "';")]
     [:script {:type "text/javascript"}
-     "xt_fiddle.app.init()"]]))
+     "xt_play.app.init()"]]))
 
 
 (comment
