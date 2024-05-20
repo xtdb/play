@@ -149,7 +149,7 @@ Resources:
     Type: 'AWS::Route53::RecordSet'
     Properties:
       Name: !Sub
-        - 'fiddle.${Domain}.'
+        - 'play.${Domain}.'
         - Domain: !Ref HostedZoneName
       HostedZoneId: !Ref HostedZoneId
       Type: 'A'
@@ -158,17 +158,32 @@ Resources:
         HostedZoneId: !GetAtt HttpEcsAlb.CanonicalHostedZoneID
         EvaluateTargetHealth: false
 
+  # Point `fiddle.xtdb.com` to `play.xtdb.com`
+  FiddleDomainRecord:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Name: !Sub
+        - 'fiddle.${Domain}.'
+        - Domain: !Ref HostedZoneName
+      HostedZoneId: !Ref HostedZoneId
+      Type: 'CNAME'
+      TTL: 60
+      ResourceRecords:
+        - !Sub
+          - 'play.${Domain}.'
+          - Domain: !Ref HostedZoneName
+
   Certificate:
     Type: AWS::CertificateManager::Certificate
     Properties:
       DomainName: !Sub
-        - 'fiddle.${Domain}'
+        - 'play.${Domain}'
         - Domain: !Ref HostedZoneName
       ValidationMethod: 'DNS'
 
       DomainValidationOptions:
         - DomainName: !Sub
-            - 'fiddle.${Domain}'
+            - 'play.${Domain}'
             - Domain: !Ref HostedZoneName
           HostedZoneId: !Ref HostedZoneId
 
