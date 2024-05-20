@@ -177,13 +177,13 @@ Resources:
     Type: AWS::CertificateManager::Certificate
     Properties:
       DomainName: !Sub
-        - 'play.${Domain}'
+        - '*.${Domain}'
         - Domain: !Ref HostedZoneName
       ValidationMethod: 'DNS'
 
       DomainValidationOptions:
         - DomainName: !Sub
-            - 'play.${Domain}'
+            - '*.${Domain}'
             - Domain: !Ref HostedZoneName
           HostedZoneId: !Ref HostedZoneId
 
