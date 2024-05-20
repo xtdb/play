@@ -72,7 +72,7 @@
     [:script {:type "text/javascript"}
      (str "var xt_version = '" xt-version "';")]
     [:script {:type "text/javascript"}
-     "xt_fiddle.app.init()"]]))
+     "xt_play.app.init()"]]))
 
 
 (comment

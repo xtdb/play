@@ -17,7 +17,7 @@
  {:app
   {:target     :browser
 
-   :modules {:app {:entries [xt-fiddle.app]}}
+   :modules {:app {:entries [xt-play.app]}}
                    ;; :preloads [devtools.preload]
 
 

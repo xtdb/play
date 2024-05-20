@@ -1,4 +1,4 @@
-(ns xt-fiddle.tx-batch
+(ns xt-play.tx-batch
   (:refer-clojure :exclude [list])
   (:require [re-frame.core :as rf]))
 
@@ -6,7 +6,7 @@
 ;; - Batches are in a consistent order for rendering
 ;; - Batches are accessed via a consistent key
 ;;   - This means we can't just store a vector
-;;   - This is required because `xt-fiddle.editor` doesn't support
+;;   - This is required because `xt-play.editor` doesn't support
 ;;     updating the :source.
 ;;     This makes deleting difficult.
 ;;
@@ -23,7 +23,7 @@
 ;; >> Utils
 
 (defn- new-id! []
-  (->> (gensym "tx") name (keyword 'xt-fiddle.tx-batch)))
+  (->> (gensym "tx") name (keyword 'xt-play.tx-batch)))
 
 
 

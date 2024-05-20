@@ -1,4 +1,4 @@
-(ns xt-fiddle.highlight
+(ns xt-play.highlight
   (:require ["highlight.js/lib/core" :as hljs]
             ["highlight.js/lib/languages/clojure" :as hljs-clojure]
             ["highlight.js/lib/languages/json" :as hljs-json]))

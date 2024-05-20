@@ -1,4 +1,4 @@
-(ns xt-fiddle.clipboard
+(ns xt-play.clipboard
   (:require [re-frame.core :as rf]))
 
 (rf/reg-fx ::set
