@@ -1,13 +1,13 @@
-# XT-fiddle
+# XT-play
 
-The code behind [XT fiddle](https://fiddle.xtdb.com/), a web tool for exploring the [XTDB database](https://xtdb.com).
+The code behind [XT play](https://play.xtdb.com/), a web tool for exploring the [XTDB database](https://xtdb.com).
 
 ## Running
 
 Want to run it locally? Use the docker container:
 
 ```sh
-docker run -p 3000:8000 --pull=always ghcr.io/xtdb/xt-fiddle
+docker run -p 3000:8000 --pull=always ghcr.io/xtdb/xt-play
 ```
 
 Then visit [https://localhost:3000](https://localhost:3000).

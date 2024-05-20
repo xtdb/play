@@ -173,7 +173,7 @@
       [:div {:class "flex flex-row items-center gap-1"}
        [:img {:class "h-8"
               :src "/public/images/xtdb-full-logo.svg"}]
-       [title "Fiddle"]]]
+       [title "Play"]]]
      [:span {:class "text-sm text-gray-400"}
       @(rf/subscribe [:version])]]
     [:div {:class "max-md:hidden flex-grow"}]
