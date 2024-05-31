@@ -25,14 +25,14 @@ Resources:
                   - ssm:Get*
                   - ssm:List*
                 Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/xt-play_*"
-        - PolicyName: s3-upload
+        - PolicyName: s3
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: RegisterTaskDefinition
-                Effect: Allow
+              - Effect: Allow
                 Action:
                   - s3:PutObject
+                  - s3:GetObjectVersion
                 Resource:
                   - arn:aws:s3:::xt-play-lambda-code
                   - arn:aws:s3:::xt-play-lambda-code/*
