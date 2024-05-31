@@ -1,0 +1,34 @@
+# This file creates a certificate for CloudFront to use
+# It is in a separate file because:
+# - CloudFront requires it be created in `us-east-1`
+# - Cloudformation only allows deploying resources to one region at a time
+---
+# NOTE: Must be created in `us-east-1` because that's a requirement for CloudFront
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  HostedZoneId:
+    Type: 'String'
+    Description: 'The zone id for the hosted zone'
+  HostedZoneName:
+    Type: 'String'
+    Description: 'The zone name for the hosted zone'
+
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub
+        - '*.${Domain}'
+        - Domain: !Ref HostedZoneName
+      ValidationMethod: 'DNS'
+
+      DomainValidationOptions:
+        - DomainName: !Sub
+            - '*.${Domain}'
+            - Domain: !Ref HostedZoneName
+          HostedZoneId: !Ref HostedZoneId
+
+Outputs:
+  CertificateArn:
+    Value: !Ref Certificate

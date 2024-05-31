@@ -1,0 +1,40 @@
+# This file creates things the lambda needs to be created
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  PlayCodeBucket:
+    Type: 'AWS::S3::Bucket'
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: 'xt-play-lambda-code'
+      VersioningConfiguration:
+        Status: Enabled
+
+  SSMPlayCodeBucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-play_play-code-bucket'
+      Value: !Ref PlayCodeBucket
+
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+
+  SSMLambdaExecutionRole:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-play_lambda-execution-role-arn'
+      Value: !GetAtt LambdaExecutionRole.Arn

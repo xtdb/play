@@ -1,27 +1,20 @@
+# This file creates a keys for github to be able to deploy 03-lambda.yml
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 
 Resources:
-  # >> Github deploy IAM Role
-
   GithubDeployUser:
     Type: 'AWS::IAM::User'
     Properties:
       Policies:
-        - PolicyName: ecr-allow-push
+        - PolicyName: lambda
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - ecr:CompleteLayerUpload
-                  - ecr:GetAuthorizationToken
-                  - ecr:UploadLayerPart
-                  - ecr:InitiateLayerUpload
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:PutImage
-                  - ecr:BatchGetImage
-                Resource: "*"
+                  - lambda:*
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
         - PolicyName: ssm-parameter-get
           PolicyDocument:
             Version: '2012-10-17'
@@ -31,31 +24,18 @@ Resources:
                   - ssm:Describe*
                   - ssm:Get*
                   - ssm:List*
-                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/xt-fiddle_*"
-        - PolicyName: task-definition-update
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/xt-play_*"
+        - PolicyName: s3
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: RegisterTaskDefinition
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - ecs:RegisterTaskDefinition
-                  - ecs:DeregisterTaskDefinition
-                Resource: "*"
-              - Sid: PassRolesInTaskDefinition
-                Effect: Allow
-                Action:
-                  - iam:PassRole
+                  - s3:PutObject
+                  - s3:GetObjectVersion
                 Resource:
-                  - '{{resolve:ssm:xt-fiddle_task-role-arn}}'
-                  - '{{resolve:ssm:xt-fiddle_task-execution-role-arn}}'
-              - Sid: DeployService
-                Effect: Allow
-                Action:
-                  - ecs:UpdateService
-                  - ecs:DescribeServices
-                Resource:
-                  - '{{resolve:ssm:xt-fiddle_ecs-service-arn}}'
+                  - arn:aws:s3:::xt-play-lambda-code
+                  - arn:aws:s3:::xt-play-lambda-code/*
         # https://github.com/aws-actions/aws-cloudformation-github-deploy?tab=readme-ov-file#permissions
         - PolicyName: cloudformation-deploy
           PolicyDocument:

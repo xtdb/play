@@ -13,17 +13,34 @@
   [_]
   (b/delete {:path "target"}))
 
+(defn compile-cljs []
+  (let [{:keys [exit]} (b/process {:command-args ["npx" "shadow-cljs" "release" "app"]})]
+    (when-not (= 0 exit)
+      (throw (ex-info "Failed to compile cljs" {:exit exit})))))
+
 (defn jar [_]
-  (b/copy-dir {:src-dirs ["src" "resources"]
+  (compile-cljs)
+  (b/copy-dir {:src-dirs ["src/clj" "resources"]
                :target-dir class-dir})
+  ; For xt-version
+  (b/copy-file {:src "deps.edn"
+                :target (str class-dir "/deps.edn")})
   (b/compile-clj {:basis basis
-                  :src-dirs ["src"]
+                  :src-dirs ["src/clj"]
                   :class-dir class-dir
                   :bindings {#'clojure.core/*assert* false}})
   (b/uber {:class-dir class-dir
            :uber-file jar-file
            :main main
-           :basis basis}))
+           :basis basis
+           :conflict-handlers
+           {"org/apache/arrow/vector/.*" :overwrite
+            ; Defaults
+            "^data_readers.clj[c]?$" :data-readers
+            "^META-INF/services/.*" :append
+            "(?i)^(META-INF/)?(COPYRIGHT|NOTICE|LICENSE)(\\.(txt|md))?$" :append-dedupe
+            :default :ignore}}))
+
 
 (comment
   (clean nil)
