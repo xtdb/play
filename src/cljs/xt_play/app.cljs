@@ -53,6 +53,7 @@
   ;; so it is available even in :advanced release builds
   (log/info :init "init")
   ;; Redirect from fiddle to play.xtdb.com
+  ;; TODO: Replace with 301 using S3 & CloudFront
   (when (redirect?)
     (redirect!))
   (start!))

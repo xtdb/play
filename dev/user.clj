@@ -1,5 +1,5 @@
 (ns user
-  (:require [main]
+  (:require [xt-play.main :as main]
             [clojure.java.browse :as browse]
             [clojure.java.io :as io]
             [clojure.tools.namespace.repl :as repl]

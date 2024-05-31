@@ -1,45 +1,17 @@
 ---
-name: Build & Push Docker
+name: Build & Deploy
 
-on:
-  push:
-    tags:
-      - 'v*'
+on: push
+# on:
+#   push:
+#     tags:
+#       - 'v*'
 
 env:
   AWS_REGION: eu-west-1
-  GH_REGISTRY: ghcr.io
 
 jobs:
-  build-and-push-github:
-    runs-on: ubuntu-latest
-    if: github.repository == 'xtdb/xt-fiddle'
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
-        with:
-          registry: ${{ env.GH_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: ${{ env.GH_REGISTRY }}/${{ github.repository }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  build-and-push-ecr_and_deploy-cloudformation:
+  build-and-deploy:
     runs-on: ubuntu-latest
     if: github.repository == 'xtdb/xt-fiddle'
     permissions:
@@ -54,28 +26,36 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+      - name: Prepare java
+        uses: actions/setup-java@v4.2.1
         with:
-          images: ${{ steps.login-ecr.outputs.registry }}/xt-fiddle
-      - name: Build and push Docker image
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Get tag
-        id: vars
-        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          cli: 1.11.3.1463
+      # - name: Cache clojure dependencies
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: |
+      #       ~/.m2/repository
+      #       ~/.gitlibs
+      #       ~/.deps.clj
+      #     key: cljdeps-${{ hashFiles('deps.edn') }}
+      #     # key: cljdeps-${{ hashFiles('deps.edn', 'bb.edn') }}
+      #     restore-keys: cljdeps-
+      - name: Build jar
+        run: clojure -T:build jar
+      - name: upload to s3
+        id: upload
+        run: |
+          mv target/lib-*.jar xt-play.jar
+          version=$(aws s3api put-object --body xt-play.jar --bucket xt-play-lambda-code --key xt-play.jar --output text --query VersionId)
+          echo "version=${version}" >> $GITHUB_OUTPUT
       - name: Deploy to AWS CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
-          name: 'xt-fiddle--service'
-          template: cloudformation/service.yml
-          parameter-overrides: "DockerTag=${{ steps.vars.outputs.tag }}"
+          name: 'xt-play--lambda'
+          template: cloudformation/03-lambda.yml
+          parameter-overrides: "PlayCodeVersion=${{ steps.upload.outputs.version }}"

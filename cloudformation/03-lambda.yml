@@ -1,0 +1,51 @@
+# This file creates the lambda
+# It is in a separate file so that github can deploy it without needing wider permissions
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+# See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-aws-serverless.html
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  PlayCodeVersion:
+    Type: 'String'
+    Description: 'The version id for the play code'
+
+Resources:
+  # See: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+  PlayLambda:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Runtime: java21
+      Role: '{{resolve:ssm:xt-play_lambda-execution-role-arn}}'
+      Handler: xt_play.lambda
+      CodeUri:
+        Bucket: '{{resolve:ssm:xt-play_play-code-bucket}}'
+        Key: 'xt-play.jar'
+        Version: !Ref PlayCodeVersion
+      # TODO: Tune? Works well enough for now
+      MemorySize: 1769  # Needed to increase the CPU
+
+      # Makes the lambda quick enough to be viable
+      SnapStart:
+        ApplyOn: PublishedVersions
+
+      FunctionUrlConfig:
+        AuthType: NONE
+      # Ensures:
+      # - We have a version for SnapStart to work
+      # - The FunctionURL uses said version
+      AutoPublishAlias: live
+
+      # Required for xtdb
+      Environment:
+        Variables:
+          JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true'
+
+  SSMPlayLambdaUrlDomain:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-play_play-lambda-url-function-url-domain'
+      # Stupid, but CloudFront wants only the domain part :/
+      Value: !Select [2, !Split ["/", !GetAtt PlayLambdaUrl.FunctionUrl]]

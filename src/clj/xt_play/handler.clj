@@ -1,9 +1,9 @@
-(ns server
-  (:require [clojure.edn :as edn]
+(ns xt-play.handler
+  (:require [integrant.core :as ig]
+            [clojure.edn :as edn]
             [clojure.instant :refer [read-instant-date]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [integrant.core :as ig]
             [muuntaja.core :as m]
             [reitit.coercion.spec :as rcs]
             [reitit.dev.pretty :as pretty]
@@ -11,7 +11,6 @@
             [reitit.ring.coercion :as rrc]
             [reitit.ring.middleware.exception :as exception]
             [reitit.ring.middleware.muuntaja :as muuntaja]
-            [ring.adapter.jetty :as jetty]
             [ring.middleware.params :as params]
             [ring.util.response :as response]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -86,6 +85,7 @@
           (throw (ex-info "Transaction error" {:error error})))))))
 
 (defn run-handler [request]
+  (log/debug "run-handler" request)
   (let [{:keys [tx-batches query]} (get-in request [:parameters :body])
         ;; TODO: Filter for only the readers required?
         read-edn (partial edn/read-string {:readers *data-readers*})
@@ -112,19 +112,13 @@
         (log/warn :submit-error {:e e})
         (throw e)))))
 
-(defn router
-  []
+(def routes
   (ring/router
    [["/"
      {:get {:summary "Fetch main page"
             :handler (fn [_request]
                        (-> (response/response index)
                            (response/content-type "text/html")))}}]
-
-    ["/status"
-     {:get {:summary "Check server status"
-            :handler (fn [_request]
-                       (response/response {:status "ok"}))}}]
 
     ["/db-run"
      {:post {:summary "Run transactions + a query"
@@ -145,23 +139,10 @@
                         rrc/coerce-request-middleware
                         rrc/coerce-response-middleware]}}))
 
-(defn start
-  [{:keys [join port] :or {port 8000}}]
-  ; NOTE: This ensure xtdb is warmed up before starting the server
-  ;       Otherwise, the first few requests will fail
-  (with-open [node (xtn/start-node {})]
-    (xt/status node))
-  (let [server (jetty/run-jetty (ring/ring-handler
-                                 (router)
-                                 (ring/routes
-                                  #_(ring/create-resource-handler {:root "public"})
-                                  (ring/create-default-handler)))
-                                {:port port, :join? join})]
-    (log/info "server running on port" port)
-    server))
+(def handler
+  (ring/ring-handler
+    routes
+    (ring/routes (ring/create-default-handler))))
 
-(defmethod ig/init-key ::server [_ opts]
-  (start opts))
-
-(defmethod ig/halt-key! ::server [_ server]
-  (.stop server))
+(defmethod ig/init-key ::handler [_ _opts]
+  handler)
