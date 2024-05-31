@@ -2,25 +2,11 @@
 
 The code behind [XT play](https://play.xtdb.com/), a web tool for exploring the [XTDB database](https://xtdb.com).
 
-## Running
-
-Want to run it locally? Use the docker container:
-
-```sh
-docker run -p 3000:8000 --pull=always ghcr.io/xtdb/xt-play
-```
-
-Then visit [https://localhost:3000](https://localhost:3000).
-(Wait until the first log line appears)
+It is deployed on an AWS Lambda but can be run locally as a normal web server for ease of development.
 
 ## Deploy
 
-This repo is setup to deploy on *git tags*, specifically `vX.Y.Z` tags.
-
-So deploying is as simple as:
-1. Commit & push your changes
-2. `git tag vX.Y.Z`
-3. `git push --tags`
+This repo is setup to deploy on push to `main`, so just merge your PR and go!
 
 ## Development
 

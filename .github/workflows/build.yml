@@ -1,11 +1,11 @@
 ---
 name: Build & Deploy
 
-on: push
-# on:
-#   push:
-#     tags:
-#       - 'v*'
+on:
+  push:
+    branches:
+      - main
+
 
 env:
   AWS_REGION: eu-west-1
