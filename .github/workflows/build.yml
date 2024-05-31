@@ -42,16 +42,16 @@ jobs:
           cache: 'yarn'
       - name: Install yarn deps
         run: yarn install --frozen-lockfile
-      # - name: Cache clojure dependencies
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       ~/.m2/repository
-      #       ~/.gitlibs
-      #       ~/.deps.clj
-      #     key: cljdeps-${{ hashFiles('deps.edn') }}
-      #     # key: cljdeps-${{ hashFiles('deps.edn', 'bb.edn') }}
-      #     restore-keys: cljdeps-
+      - name: Cache clojure dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: cljdeps-${{ hashFiles('deps.edn') }}
+          # key: cljdeps-${{ hashFiles('deps.edn', 'bb.edn') }}
+          restore-keys: cljdeps-
       - name: Build jar
         run: clojure -T:build jar
       - name: upload to s3
