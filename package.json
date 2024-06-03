@@ -20,6 +20,7 @@
     "@lezer/highlight": "^1.0.0",
     "@lezer/lr": "^1.0.0",
     "@nextjournal/lezer-clojure": "1.0.0",
+    "@uiw/react-codemirror": "^4.22.1",
     "framer-motion": "^6.2.8",
     "highlight.js": "^11.9.0",
     "react": "^16.13.0",

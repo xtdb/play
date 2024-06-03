@@ -210,8 +210,8 @@
       [reset-system-time-button id]])
    [editor {:class "border md:flex-grow min-h-36"
             :source txs
-            :change-callback #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :txs %]]
-                                                 [:dispatch [:update-url]]]])}]])
+            :on-change #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :txs %]]
+                                           [:dispatch [:update-url]]]])}]])
 
 (defn multiple-transactions [{:keys [editor]} tx-batches]
   [:<>
@@ -232,8 +232,8 @@
                                                     [:dispatch [:update-url]]]])}]]
       [editor {:class "border md:flex-grow min-h-36"
                :source txs
-               :change-callback #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :txs %]]
-                                                    [:dispatch [:update-url]]]])}]])])
+               :on-change #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :txs %]]
+                                              [:dispatch [:update-url]]]])}]])])
 
 (defn transactions [{:keys [editor]}]
   [:div {:class "mx-4 md:mx-0 md:ml-4 md:flex-1 flex flex-col"}
@@ -260,8 +260,8 @@
    [:h2 "Query:"]
    [editor {:class "md:flex-grow h-full min-h-36 border"
             :source @(rf/subscribe [:query])
-            :change-callback #(rf/dispatch [:fx [[:dispatch [:set-query %]]
-                                                 [:dispatch [:update-url]]]])}]])
+            :on-change #(rf/dispatch [:fx [[:dispatch [:set-query %]]
+                                           [:dispatch [:update-url]]]])}]])
 
 (defn results []
   [:section {:class "md:h-1/2 mx-4 flex flex-1 flex-col"}

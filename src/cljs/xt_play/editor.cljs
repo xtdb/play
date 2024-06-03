@@ -5,18 +5,16 @@
             ["@codemirror/lang-sql" :refer [sql PostgreSQL]]
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :as view :refer [EditorView lineNumbers]]
+            ["@uiw/react-codemirror$default" :as CodeMirror]
             [applied-science.js-interop :as j]
-            [nextjournal.clojure-mode :as cm-clj]
-            [reagent.core :as r]))
+            [nextjournal.clojure-mode :as cm-clj]))
 
 (def theme
   (.theme EditorView
-          (j/lit {"&.cm-editor" {:height "100%"}
+          (j/lit {; General styling
                   ".cm-content" {:white-space "pre-wrap"
                                  :padding "10px 0"
                                  :flex "1 1 0"}
-
-                  "&.cm-focused" {:outline "0 !important"}
                   ".cm-line" {:padding "0 9px"
                               :line-height "1.6"
                               :font-size "16px"
@@ -28,14 +26,13 @@
                                  :line-height "1.6"
                                  :font-size "16px"
                                  :font-family "var(--code-font)"}
-                  ;; only show cursor when focused
+                  ; Ensure editor is full height
+                  "&.cm-editor" {:height "100%"}
+                  ; No border when focused
+                  "&.cm-focused" {:outline "0 !important"}
+                  ;; Only show cursor when focused
                   ".cm-cursor" {:visibility "hidden"}
                   "&.cm-focused .cm-cursor" {:visibility "visible"}})))
-
-(defn on-change [callback]
-  (view/EditorView.updateListener.of (fn [update]
-                                       (when (.-changes update)
-                                         (callback (.. update -state -doc toString))))))
 
 (defn js-concat [& colls]
   (apply array (apply concat colls)))
@@ -69,37 +66,22 @@
                                              "xt$system_from" "xt$system_to"]}
                 :upperCaseKeywords true})])
 
-(defn make-view [{:keys [state parent]}]
-  (new EditorView #js{:state state :parent parent}))
+(defn editor [{:keys [source extensions on-change] my-class :class}]
+  [:div {:class my-class}
+    [:> CodeMirror {:value source
+                    :extensions extensions
+                    :basicSetup false
+                    :className "h-full"
+                    :on-change on-change}]])
 
-(defn make-state [{:keys [doc extensions]}]
-  (.create EditorState #js{:doc doc :extensions (clj->js extensions)}))
+(defn clj-editor [{:keys [source on-change] my-class :class}]
+  [editor {:source source
+           :extensions clj-extensions
+           :on-change on-change
+           :class my-class}])
 
-;; NOTE: There's a bug here: changes to `source` aren't represented in the editor.
-;;       I can't think of a way around this right now :/
-;;       I'm going to "fix" it by trying to make sure this doesn't happen
-(defn editor [{:keys [extensions]}]
-  (fn [{:keys [source change-callback] my-class :class}]
-    (r/with-let [!view (r/atom nil)
-                 ; NOTE: This must be defined in the with-let
-                 ;       If put under :ref then it's called every time
-                 ;       the component is re-rendered.
-                 ;       This would create multiple instances of the editor.
-                 mount! (fn [el]
-                          (when el
-                            (let [extensions [extensions
-                                              (on-change change-callback)]
-                                  state (make-state
-                                         {:doc source
-                                          :extensions extensions})]
-                              (reset! !view (make-view
-                                             {:parent el
-                                              :state state})))))]
-      [:div {:class my-class
-             :ref mount!}]
-      (finally
-        (j/call @!view :destroy)))))
-
-(def clj-editor (editor {:extensions clj-extensions}))
-
-(def sql-editor (editor {:extensions sql-extensions}))
+(defn sql-editor [{:keys [source on-change] my-class :class}]
+  [editor {:source source
+           :extensions sql-extensions
+           :on-change on-change
+           :class my-class}])
