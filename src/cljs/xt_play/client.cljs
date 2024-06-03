@@ -49,7 +49,8 @@
     {:db (-> db
              (assoc :type new-type)
              (assoc :query (query/default new-type)))
-     :dispatch [::tx-batch/init [(tx-batch/default new-type)]]}))
+     :fx [[:dispatch [::tx-batch/init [(tx-batch/default new-type)]]]
+          [:dispatch [:update-url]]]}))
 
 (rf/reg-event-db
   :set-query
@@ -77,8 +78,7 @@
   [dropdown {:items [{:value :sql :label "SQL"}
                      {:value :xtql :label "XTQL"}]
              :selected @(rf/subscribe [:get-type])
-             :on-click #(rf/dispatch [:fx [[:dispatch [:dropdown-selection (:value %)]]
-                                           [:dispatch [:update-url]]]])
+             :on-click #(rf/dispatch [:dropdown-selection (:value %)])
              :label (case @(rf/subscribe [:get-type])
                       :xtql "XTQL"
                       :sql "SQL")}])
