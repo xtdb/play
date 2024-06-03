@@ -38,24 +38,11 @@
   (rf/dispatch-sync [::init js/xt_version])
   (r-dom/render [client/app] (js/document.getElementById "app")))
 
-(defn redirect? []
-  (let [hostname js/window.location.hostname]
-    (and (not= hostname "localhost")
-         (not= hostname "play.xtdb.com"))))
-
-(defn redirect! []
-  (set! js/window.location.href
-        (str "https://play.xtdb.com" js/window.location.search)))
-
 (defn ^:export init []
   ;; init is called ONCE when the page loads
   ;; this is called in the index.html and must be exported
   ;; so it is available even in :advanced release builds
   (log/info :init "init")
-  ;; Redirect from fiddle to play.xtdb.com
-  ;; TODO: Replace with 301 using S3 & CloudFront
-  (when (redirect?)
-    (redirect!))
   (start!))
 
 ;; this is called before any code is reloaded
