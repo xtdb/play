@@ -42,6 +42,20 @@ Resources:
         Variables:
           JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true'
 
+  SSMPlayLambdaName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-play_play-lambda-name'
+      Value: !Ref PlayLambda
+
+  SSMPlayLambdaArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-play_play-lambda-arn'
+      Value: !GetAtt PlayLambda.Arn
+
   SSMPlayLambdaUrlDomain:
     Type: AWS::SSM::Parameter
     Properties:
