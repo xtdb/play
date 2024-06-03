@@ -2,6 +2,7 @@
   "name": "xt-play",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "yarn@3.5.0",
   "dependencies": {
     "@codemirror/autocomplete": "^6.12.0",
     "@codemirror/commands": "^6.0.0",
