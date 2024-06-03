@@ -54,3 +54,21 @@ Resources:
         # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-route53-recordset-aliastarget.html#cfn-route53-recordset-aliastarget-hostedzoneid
         HostedZoneId: 'Z2FDTNDATAQYW2'
         EvaluateTargetHealth: false
+
+  KeepLambdaWarmTrigger:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "ScheduledRule"
+      ScheduleExpression: "rate(15 minutes)"
+      State: "ENABLED"
+      Targets:
+        - Arn: '{{resolve:ssm:xt-play_play-lambda-alias-arn}}'
+          Id: "TargetFunctionV1"
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: '{{resolve:ssm:xt-play_play-lambda-name}}'
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt KeepLambdaWarmTrigger.Arn
