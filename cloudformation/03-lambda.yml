@@ -49,12 +49,12 @@ Resources:
       Name: 'xt-play_play-lambda-name'
       Value: !Ref PlayLambda
 
-  SSMPlayLambdaArn:
+  SSMPlayLambdaAliasArn:
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
-      Name: 'xt-play_play-lambda-arn'
-      Value: !GetAtt PlayLambda.Arn
+      Name: 'xt-play_play-lambda-alias-arn'
+      Value: !Ref PlayLambdaAliaslive
 
   SSMPlayLambdaUrlDomain:
     Type: AWS::SSM::Parameter
