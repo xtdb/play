@@ -3,7 +3,7 @@
 ;; >> API
 
 (def default-xtql-query "(from :docs [xt/id foo])")
-(def default-sql-query "SELECT docs.xt$id, docs.foo FROM docs")
+(def default-sql-query "SELECT xt$id, foo FROM docs")
 
 (defn default [type]
   (case type
