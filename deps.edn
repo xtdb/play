@@ -50,7 +50,7 @@
               "-Dio.netty.tryReflectionSetAccessible=true"]}
 
   :prod
-  {:exec-fn main/-main
+  {:exec-fn xt-play.main/-main
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
               "-Dio.netty.tryReflectionSetAccessible=true"]}
 
