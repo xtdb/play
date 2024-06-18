@@ -100,19 +100,12 @@
         "Data:"]
        [:p (pr-str data)]])]])
 
-(defn table-order [a b]
-  (cond
-    (= a b) 0
-    (= a :xt$id) -1
-    (= b :xt$id) 1
-    :else (compare a b)))
-
 (defn display-table [results type]
   (when results
     (let [all-keys (->> results
                         (mapcat keys)
                         (into #{})
-                        (sort table-order))]
+                        (sort))]
       [:table {:class "table-auto w-full"}
        [:thead
         [:tr {:class "border-b"}
