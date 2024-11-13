@@ -16,7 +16,7 @@
   ring-cors/ring-cors {:mvn/version "0.1.13"}
 
   ;; TODO: dev deps?
-  ring/ring-jetty-adapter {:mvn/version "1.7.1"}
+  ring/ring-jetty-adapter {:mvn/version "1.13.0"}
   integrant/integrant {:mvn/version "0.8.1"}
 
   ;; SSR
