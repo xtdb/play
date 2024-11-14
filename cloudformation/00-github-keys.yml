@@ -50,6 +50,15 @@ Resources:
                   - cloudformation:DeleteChangeSet
                   - cloudformation:ExecuteChangeSet
                 Resource: "*"
+        - PolicyName: pass-lambda-role
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/xt-play-lambda-deps-LambdaExecutionRole-*"
+
 
   GithubDeployUserAccessKey:
     Type: 'AWS::IAM::AccessKey'
