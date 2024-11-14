@@ -1,6 +1,6 @@
 # XT-play
 
-The code behind [XT play](https://play.xtdb.com/), a web tool for exploring the [XTDB database](https://xtdb.com).
+This repo holds all the code behind [XT play](https://play.xtdb.com/), a web tool for exploring the [XTDB database](https://xtdb.com).
 
 It is deployed on an AWS Lambda but can be run locally as a normal web server for ease of development.
 
