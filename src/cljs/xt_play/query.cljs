@@ -3,7 +3,7 @@
 ;; >> API
 
 (def default-xtql-query "(from :docs [xt/id foo])")
-(def default-sql-query "SELECT * FROM docs")
+(def default-sql-query "SELECT *, _valid_from FROM docs")
 
 (defn default [type]
   (case type

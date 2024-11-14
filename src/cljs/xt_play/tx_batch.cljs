@@ -83,8 +83,8 @@
 (def blank {:txs "" :system-time nil})
 
 (def default-dml "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]")
-(def default-sql-insert "INSERT INTO docs (_id, value) VALUES (1, 'foo');
-INSERT INTO docs RECORDS {_id: 2, value: 'bar'}")
+(def default-sql-insert "INSERT INTO docs (_id, col1) VALUES (1, 'foo');
+INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};")
 (defn default [type]
   {:system-time nil
    :txs (case type
