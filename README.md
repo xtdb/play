@@ -13,7 +13,7 @@ This repo is setup to deploy on push to `main`, so just merge your PR and go!
 For the front end you'll need to install deps:
 
 ```sh
-yarn install
+corepack enable && yarn install
 ```
 
 After that for development you'll need two processes:
@@ -36,6 +36,60 @@ Just start your repl in the ordinary way (or be sneaky like me and use the repl 
 Then you can start the server by running `(go)` in the `user` namespace.
 
 You should than be able to browse a dev build at [http://localhost:8000](http://localhost:8000).
+
+## Troubleshooting
+
+### Errors on shadow startup
+
+<details>
+<summary> java.lang.UnsupportedClassVersionError  </summary>
+
+#### Error
+
+```sh
+Caused by: java.lang.UnsupportedClassVersionError: xtdb/api/Xtdb has been compiled by a more recent version of the Java Runtime (class file version 65.0), this version of the Java Runtime only recognizes class file versions up to 55.0
+```
+#### Solution
+You're likely using the wrong java version for the project to run. Hint: the major version in the project is in the error, make sure you're running the correct java version before running.
+
+---
+
+</details>
+
+<details>
+<summary> -A:cljs:dev (No such file or directory)  </summary>
+
+#### Error
+
+```sh
+Execution error (FileNotFoundException) at java.io.FileInputStream/open0 (FileInputStream.java:-2).
+-A:cljs:dev (No such file or directory)
+```
+
+#### Solution
+Check Clojure is installed and up to date
+
+```sh
+clojure -Sdescribe
+```
+output:
+```txt
+{:version "1.12.0.1488"
+ :config-files ["/usr/local/lib/clojure/deps.edn" "/home/juxt/.clojure/deps.edn" "deps.edn" ]
+ :config-user "/home/juxt/.clojure/deps.edn"
+ :config-project "deps.edn"
+ :install-dir "/usr/local/lib/clojure"
+ :config-dir "/home/juxt/.clojure"
+ :cache-dir ".cpcache"
+ :force false
+ :repro false
+ :main-aliases ""
+ :repl-aliases ""}
+```
+
+---
+
+</details>
 
 
 ## Infrastructure
