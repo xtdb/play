@@ -37,6 +37,27 @@ Then you can start the server by running `(go)` in the `user` namespace.
 
 You should than be able to browse a dev build at [http://localhost:8000](http://localhost:8000).
 
+### Emacs development
+
+```
+M-x cider-jack-in-clj&cljs
+```
+
+Which command should be used (default clojure-cli): `shadow-cljs`
+
+From the repl:
+
+```
+M-x cider-repl-set-ns user
+```
+
+Switch to namespace: `user`
+
+```
+user> (watch-deps!) (go) (browse 8000)
+
+```
+
 ## Troubleshooting
 
 ### Errors on shadow startup
