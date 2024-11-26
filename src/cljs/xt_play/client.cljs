@@ -210,7 +210,7 @@
   [:<>
    (for [[id {:keys [system-time txs]}] tx-batches]
      ^{:key id}
-     [:div {:class "flex flex-col h-full"}
+     [:div {:class "flex flex-col"}
       [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200"}
        [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
         (if (nil? system-time)
