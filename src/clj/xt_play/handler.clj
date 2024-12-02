@@ -93,6 +93,7 @@
                         (map #(update % :system-time (fn [s] (when s (read-instant-date s)))))
                         (map #(update % :txs read-edn)))
         query (read-edn query)]
+    (log/info :db-run {:tx-batches tx-batches :query query})
     (try
       (with-open [node (xtn/start-node {})]
         ;; Run transactions
