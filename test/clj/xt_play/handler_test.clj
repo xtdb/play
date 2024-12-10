@@ -1,6 +1,7 @@
 (ns xt-play.handler-test
   (:require [clojure.edn :as edn]
             [clojure.test :as t]
+            [clojure.data.json :as json]
             [next.jdbc :as jdbc]
             [xt-play.handler :as h]
             [xtdb.api :as xt]))
@@ -167,13 +168,29 @@
                    (assoc-in [:parameters :body :query] "SELECT * FROM people")
                    (assoc-in [:parameters :body :tx-type] "sql-beta")))))))
 
+(def docs-json
+ "{\"tx-batches\":[{\"txs\":\"[[:sql \\\"INSERT INTO product (_id, name, price) VALUES\\\\n(1, 'An Electric Bicycle', 400)\\\"]]\",\"system-time\":\"2024-01-01\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 405 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-05\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 350 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-10\"}],\"query\":\"\\\"SELECT *, _valid_from\\\\nFROM product\\\\nFOR VALID_TIME ALL -- i.e. \\\\\\\"show me all versions\\\\\\\"\\\\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \\\\\\\"...as observed at month end\\\\\\\"\\\"\"}"
+)
+
 (t/deftest docs-run
-  (t/testing "docs run returns map results"
-    (t/is
-     (= {:status 200,
-         :body
-         [{"_id" 2, "favorite_color" "red", "name" "carol"}
-          {"_id" 9, "likes" ["fishing" 3.14 {"nested" "data"}], "name" "bob"}]}
-        (h/docs-run-handler
-         (->  (t-file "sql-multi-transaction")
-              (assoc-in [:parameters :body :query] "SELECT * FROM people")))))))
+  (let [response (h/docs-run-handler {:parameters {:body (json/read-str docs-json :key-fn keyword)}})]
+    (t/testing "docs run returns map results"
+      (t/is
+       (every? map? (:body response))))
+
+    (t/testing "can handle \" strings from docs"
+      (t/is (= {:status 200,
+                :body
+                [{"_id" 1,
+                  "name" "An Electric Bicycle",
+                  "price" 350,
+                  "_valid_from" #time/zoned-date-time "2024-01-10T00:00Z[UTC]"}
+                 {"_id" 1,
+                  "name" "An Electric Bicycle",
+                  "price" 405,
+                  "_valid_from" #time/zoned-date-time "2024-01-05T00:00Z[UTC]"}
+                 {"_id" 1,
+                  "name" "An Electric Bicycle",
+                  "price" 400,
+                  "_valid_from" #time/zoned-date-time "2024-01-01T00:00Z[UTC]"}]}
+               response)))))
