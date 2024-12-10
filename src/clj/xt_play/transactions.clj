@@ -56,7 +56,6 @@
       (xtdb/submit! node txs {:system-time system-time})))
   (log/info tx-type "running query:" query)
   (let [res (xtdb/query node query)]
-    (def res res)
     (log/info tx-type "XTDB query response:" res)
     res))
 

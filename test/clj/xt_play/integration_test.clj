@@ -97,7 +97,7 @@
 
   (t/testing "execute payload is not mutated"
     (let [txs (atom [])]
-      (with-redefs [jdbc/execute! (fn [_conn statement & args]
+      (with-redefs [jdbc/execute! (fn [_conn statement & _args]
                                     (swap! txs conj statement))]
         (h/run-handler (t-file "beta-sql-example-request"))
         (t/is
@@ -108,8 +108,7 @@
 
   (t/testing "xt submit-tx sql payload is reformatted"
     (let [txs (atom [])]
-      (def txs txs)
-      (with-redefs [xt/submit-tx (fn [_node tx & args]
+      (with-redefs [xt/submit-tx (fn [_node tx & _args]
                                    (swap! txs conj tx))]
         (h/run-handler (t-file "sql-example-request"))
         (t/is
