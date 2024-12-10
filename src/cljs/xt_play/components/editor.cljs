@@ -1,6 +1,5 @@
 (ns xt-play.components.editor
-  (:require ["@codemirror/autocomplete" :refer [autocompletion]]
-            ["@codemirror/commands" :refer [defaultKeymap history historyKeymap indentWithTab]]
+  (:require ["@codemirror/commands" :refer [defaultKeymap history historyKeymap indentWithTab]]
             ["@codemirror/language" :refer [foldGutter syntaxHighlighting defaultHighlightStyle]]
             ["@codemirror/lang-sql" :refer [sql PostgreSQL]]
             ["@codemirror/state" :refer [EditorState]]
