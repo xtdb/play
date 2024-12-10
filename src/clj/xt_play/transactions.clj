@@ -12,10 +12,12 @@
 
 (defn- encode-txs [tx-type txs]
   (case (keyword tx-type)
-    :sql (->> (str/split txs #";")
-              (remove str/blank?)
-              (map #(do [:sql %]))
-              (vec))
+    :sql (if (string? txs)
+           (->> (str/split txs #";")
+                (remove str/blank?)
+                (map #(do [:sql %]))
+                (vec))
+           txs)
     :xtql (util/read-edn (str "[" txs "]"))
     ;;else
     txs))
@@ -101,7 +103,9 @@
   [{:keys [tx-batches query]}]
   (try
     (with-open [node (xtn/start-node {})]
-      (run!-tx node "sql" tx-batches query))
+      (run!-tx node "sql"
+               (mapv #(update % :txs util/read-edn) tx-batches)
+               (util/read-edn query)))
     (catch Exception e
       (log/warn :submit-error {:e e})
       (throw e))))
