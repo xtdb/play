@@ -13,14 +13,15 @@
           (j/lit {; General styling
                   ".cm-content" {:white-space "pre-wrap"
                                  :padding "10px 0"
-                                 :flex "1 1 0"}
+                                 :flex "1 1 0"
+                                 :width "-webkit-fill-available"}
                   ".cm-line" {:padding "0 9px"
                               :line-height "1.6"
                               :font-size "16px"
                               :font-family "var(--code-font)"}
                   ".cm-matchingBracket" {:border-bottom "1px solid var(--teal-color)"
                                          :color "inherit"}
-                  ".cm-gutters" {:background "transparent"
+                  ".cm-gutters" {:background "white"
                                  :padding "0 9px"
                                  :line-height "1.6"
                                  :font-size "16px"
