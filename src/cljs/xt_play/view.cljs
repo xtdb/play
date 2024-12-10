@@ -205,7 +205,9 @@
                {:class "border md:flex-grow min-h-36"})]])])
 
 (defn- transactions [{:keys [editor]}]
-  [:div {:class "mx-4 md:mx-0 md:ml-4 md:flex-1 flex flex-col"}
+  [:div {:class (str "mx-4 md:mx-0 md:ml-4 md:flex-1 flex flex-col "
+                     ;; stop editor expanding beyond the viewport
+                     "md:max-w-[48vw] lg:max-w-[49vw]")}
    [:h2 "Transactions:"]
    ; NOTE: The min-h-0 somehow makes sure the editor doesn't
    ;       overflow the flex container
@@ -225,7 +227,9 @@
       "+"]]]])
 
 (defn- query [{:keys [editor]}]
-  [:div {:class "mx-4 md:mx-0 md:mr-4 md:flex-1 flex flex-col"}
+  [:div {:class (str "mx-4 md:mx-0 md:mr-4 md:flex-1 flex flex-col "
+                     ;; stop editor expanding beyond the viewport
+                     "md:max-w-[48vw] lg:max-w-[49vw]")}
    [:h2 "Query:"]
    [editor (merge
             (editor-update-opts :query @(rf/subscribe [:query]))
