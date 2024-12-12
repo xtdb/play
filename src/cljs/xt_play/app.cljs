@@ -29,7 +29,7 @@
         (update :query maybe-decompress))))
 
 ;; TODO: Special case existing txs
-(defn- param-decode [s]
+(defn- decode-txs [s]
   (let [txs (-> s js/JSON.parse (js->clj :keywordize-keys true))]
     (->> txs
          (map #(update % :system-time (fn [d] (when d (js/Date. d))))))))
@@ -45,7 +45,7 @@
             :query (or query (query/default type))}
        :dispatch [::tx-batch/init
                   (if txs
-                    (param-decode txs)
+                    (decode-txs txs)
                     [(tx-batch/default type)])]})))
 
 (defn ^:dev/after-load start! []
