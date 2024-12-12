@@ -8,7 +8,8 @@
             [xt-play.model.query :as query]
             [xt-play.model.query-params :as query-params]
             [xt-play.model.tx-batch :as tx-batch]
-            [xt-play.view :as view]))
+            [xt-play.view :as view]
+            ["lz-string" :as lz-string]))
 
 (glogi-console/install!)
 
@@ -17,9 +18,19 @@
 
 ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
+(defn- decompress-params [{:keys [uri-version] :as query-params}]
+  (let [decompress (case uri-version
+                     "1" lz-string/decompressFromEncodedURIComponent
+                     ;; default
+                     js/atob)
+        maybe-decompress #(when % (decompress %))]
+    (-> query-params
+        (update :txs maybe-decompress)
+        (update :query maybe-decompress))))
+
 ;; TODO: Special case existing txs
-(defn- param-decode [s]
-  (let [txs (-> s js/atob js/JSON.parse (js->clj :keywordize-keys true))]
+(defn- decode-txs [s]
+  (let [txs (-> s js/JSON.parse (js->clj :keywordize-keys true))]
     (->> txs
          (map #(update % :system-time (fn [d] (when d (js/Date. d))))))))
 
@@ -27,16 +38,14 @@
   ::init
   [(rf/inject-cofx ::query-params/get)]
   (fn [{:keys [query-params]} [_ xt-version]]
-    (let [{:keys [type txs query]} query-params
+    (let [{:keys [type txs query]} (decompress-params query-params)
           type (if type (keyword type) :sql)]
       {:db {:version xt-version
             :type type
-            :query (if query
-                     (js/atob query)
-                     (query/default type))}
+            :query (or query (query/default type))}
        :dispatch [::tx-batch/init
                   (if txs
-                    (param-decode txs)
+                    (decode-txs txs)
                     [(tx-batch/default type)])]})))
 
 (defn ^:dev/after-load start! []

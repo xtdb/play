@@ -5,7 +5,8 @@
             [xt-play.model.href :as href]
             [xt-play.model.query :as query]
             [xt-play.model.query-params :as query-params]
-            [xt-play.model.tx-batch :as tx-batch]))
+            [xt-play.model.tx-batch :as tx-batch]
+            ["lz-string" :as lz-string]))
 
 (rf/reg-event-db
   :hide-copy-tick
@@ -25,15 +26,16 @@
   :-> :copy-tick)
 
 (defn- param-encode [tx-batches]
-  (-> tx-batches clj->js js/JSON.stringify js/btoa))
+  (-> tx-batches clj->js js/JSON.stringify lz-string/compressToEncodedURIComponent))
 
 (rf/reg-event-fx
  :update-url
  (fn [{:keys [db]} _]
-   {::query-params/set {:version (:version db)
+   {::query-params/set {:uri-version "1"
+                        :version (:version db)
                         :type (name (:type db))
                         :txs (param-encode (tx-batch/batch-list db))
-                        :query (js/btoa (:query db))}}))
+                        :query (lz-string/compressToEncodedURIComponent (:query db))}}))
 
 (rf/reg-event-fx
   :dropdown-selection
