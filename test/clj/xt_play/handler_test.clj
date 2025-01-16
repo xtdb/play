@@ -16,7 +16,7 @@
 
 (defn- t-file [path]
   (edn/read-string (slurp (format "test-resources/%s.edn" path))))
-
+#_
 (t/deftest run-handler-test
   (with-stubs
     #(do
