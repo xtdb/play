@@ -2,6 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [integrant.core :as ig]
             [ring.adapter.jetty :as jetty]
+            [xt-play.config :as config]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))
 
@@ -9,7 +10,7 @@
   [{:keys [join port handler] :or {port 8000}}]
   ; NOTE: This ensure xtdb is warmed up before starting the server
   ;       Otherwise, the first few requests will fail
-  (with-open [node (xtn/start-node {})]
+  (with-open [node (xtn/start-node config/node-config)]
     (xt/status node))
   (let [server (jetty/run-jetty handler
                                 {:port port, :join? join})]

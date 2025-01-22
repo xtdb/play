@@ -8,7 +8,7 @@
 
 (defn with-xtdb [f]
   (try
-    (with-open [node (xtn/start-node {})]
+    (with-open [node (xtn/start-node config/node-config)]
       (f node))
     (catch Exception e
       (log/warn :submit-error {:e e})
@@ -32,13 +32,13 @@
   (with-open [conn (jdbc/get-connection config/db)]
     (f conn)))
 
-(defn jdbc-execute! 
+(defn jdbc-execute!
   [conn statement]
   (log/info :jdbc-execute! statement)
   (jdbc/execute! conn statement {:builder-fn jdbc-res/as-arrays}))
 
 (comment
-  (with-open [node (xtn/start-node {})]
+  (with-open [node (xtn/start-node config/node-config)]
     (doseq [st [#inst "2022" #inst "2021"]]
       (let [tx (xt/submit-tx node [] {:system-time st})
             results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
