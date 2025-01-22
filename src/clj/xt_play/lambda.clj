@@ -7,13 +7,14 @@
             [clojure.string :as str]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]
+            [xt-play.config :as config]
             [xt-play.base64 :as b64]
             [xt-play.handler :as h]))
 
 (defn -init []
   ; NOTE: This ensure xtdb is warmed up before starting the server
   ;       Otherwise, the first few requests will time out
-  (with-open [node (xtn/start-node {})]
+  (with-open [node (xtn/start-node config/node-config)]
     (xt/status node))
   [[] nil])
 

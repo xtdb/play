@@ -1,10 +1,13 @@
 (ns xt-play.handler-test
-  (:require [clojure.edn :as edn]
-            [clojure.string :as str]
-            [clojure.test :as t]
-            [clojure.data.json :as json]
-            [xt-play.handler :as h]
-            [xt-play.xtdb-stubs :refer [with-stubs db clean-db mock-resp reset-resp]]))
+  (:require
+   [clojure.data.json :as json]
+   [clojure.edn :as edn]
+   [clojure.string :as str]
+   [clojure.test :as t]
+   [xt-play.handler :as h]
+   #_:clj-kondo/ignore
+   [time-literals.data-readers :as time]
+   [xt-play.xtdb-stubs :refer [clean-db db mock-resp reset-resp with-stubs]]))
 ;; todo:
 ;; [ ] test unhappy paths
 ;; [ ] test wider range of scenarios / formats
@@ -16,7 +19,7 @@
 
 (defn- t-file [path]
   (edn/read-string (slurp (format "test-resources/%s.edn" path))))
-#_
+
 (t/deftest run-handler-test
   (with-stubs
     #(do
@@ -35,7 +38,7 @@
          (h/run-handler (t-file "sql-example-request"))
          (let [[txs query] @db]
            (t/is (= 2 (count @db)))
-           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]          
+           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
                      [:sql "
 INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]
                   txs))
@@ -152,16 +155,16 @@ INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
        (mock-resp [{"_id" 1,
                     "name" "An Electric Bicycle",
                     "price" 350,
-                    "_valid_from" #time/zoned-date-time "2024-01-10T00:00Z[UTC]"}
+                    "_valid_from" #time/zoned-date-time "2024-01-10T00:00Z"}
                    {"_id" 1,
                     "name" "An Electric Bicycle",
                     "price" 405,
-                    "_valid_from" #time/zoned-date-time "2024-01-05T00:00Z[UTC]"}
+                    "_valid_from" #time/zoned-date-time "2024-01-05T00:00Z"}
                    {"_id" 1,
                     "name" "An Electric Bicycle",
                     "price" 400,
-                    "_valid_from" #time/zoned-date-time "2024-01-01T00:00Z[UTC]"}])
-       
+                    "_valid_from" #time/zoned-date-time "2024-01-01T00:00Z"}])
+
        (let [response (h/docs-run-handler {:parameters {:body (json/read-str docs-json :key-fn keyword)}})
              txs (drop-last @db)
              query (last @db)]
@@ -173,7 +176,7 @@ INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
 
          (t/is (= "SELECT *, _valid_from\nFROM product\nFOR VALID_TIME ALL -- i.e. \"show me all versions\"\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \"...as observed at month end\""
                   query))
-         
+
          (t/testing "docs run returns map results"
            (t/is (every? map? (:body response))))
 
@@ -183,13 +186,13 @@ INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
                      [{"_id" 1,
                        "name" "An Electric Bicycle",
                        "price" 350,
-                       "_valid_from" #time/zoned-date-time "2024-01-10T00:00Z[UTC]"}
+                       "_valid_from" #time/zoned-date-time "2024-01-10T00:00Z"}
                       {"_id" 1,
                        "name" "An Electric Bicycle",
                        "price" 405,
-                       "_valid_from" #time/zoned-date-time "2024-01-05T00:00Z[UTC]"}
+                       "_valid_from" #time/zoned-date-time "2024-01-05T00:00Z"}
                       {"_id" 1,
                        "name" "An Electric Bicycle",
                        "price" 400,
-                       "_valid_from" #time/zoned-date-time "2024-01-01T00:00Z[UTC]"}]}
+                       "_valid_from" #time/zoned-date-time "2024-01-01T00:00Z"}]}
                     response)))))))
