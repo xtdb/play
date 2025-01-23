@@ -1,6 +1,6 @@
 (ns xt-play.transactions
   (:require [clojure.string :as str]
-            [clojure.data.json :as json]
+            [jsonista.core :as j]
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
@@ -33,18 +33,24 @@
 (defn format-system-time [s]
   (when s (read-instant-date s)))
 
-(defn- PGobject->clj [v]
-  (if (= org.postgresql.util.PGobject (type v))
-    (json/read-str (.getValue v) :key-fn keyword)
-    v))
+(defn- PG->clj [v]
+  (cond
+    (instance? org.postgresql.util.PGobject v) (-> (.getValue v)
+                                                   (j/write-value-as-bytes j/default-object-mapper)
+                                                   (j/read-value j/default-object-mapper))
+    (instance? org.postgresql.jdbc.PgArray v) (->> (.getArray v)
+                                                   (into [])
+                                                   (str/join ",")
+                                                   (format "[%s]"))
+    :else v))
 
 (defn- parse-result [result]
   ;; TODO - this shouldn't be needed, a fix is on the way in
   ;;        a later version of xtdb-jdb
-  ;; This will only pick up top level objects
+  ;; This should do it for now - get decent string representation so it looks more like psql output
   (mapv
    (fn [row]
-     (mapv PGobject->clj row))
+     (mapv PG->clj row))
    result))
 
 (defn- run!-tx [node tx-type tx-batches query]
@@ -68,7 +74,7 @@
         (xtdb/jdbc-execute! conn statement))
       (log/info "beta running query:" query)
       (let [res (xtdb/jdbc-execute! conn [query])]
-        (log/info "beta query resoponse" res)
+        (log/info "beta query response" res)
         (parse-result res)))))
 
 (defn run!!

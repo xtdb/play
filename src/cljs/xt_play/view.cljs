@@ -73,7 +73,7 @@
                  (pr-str value)]
                 ;; default
                 [hl/code {:language "json"}
-                 (js/JSON.stringify (clj->js value))])]))]))]]))
+                 (str value)])]))]))]]))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]
