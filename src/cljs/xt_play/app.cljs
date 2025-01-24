@@ -18,8 +18,10 @@
 ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
 ;; TODO: Special case existing txs
-(defn- param-decode [s]
-  (let [txs (-> s query-params/decode-from-binary js/JSON.parse (js->clj :keywordize-keys true))]
+(defn- param-decode [s enc]
+  (let [txs (-> (query-params/decode-from-binary s enc)
+                js/JSON.parse
+                (js->clj :keywordize-keys true))]
     (->> txs
          (map #(update % :system-time (fn [d] (when d (js/Date. d))))))))
 
@@ -27,16 +29,17 @@
  ::init
  [(rf/inject-cofx ::query-params/get)]
  (fn [{:keys [query-params]} [_ xt-version]]
-   (let [{:keys [type txs query]} query-params
+   (let [{:keys [type txs query enc]} query-params
          type (if type (keyword type) :sql)]
      {:db {:version xt-version
            :type type
+           :enc enc
            :query (if query
-                    (query-params/decode-from-binary query)
+                    (query-params/decode-from-binary query enc)
                     (query/default type))}
       :dispatch [::tx-batch/init
                  (if txs
-                   (param-decode txs)
+                   (param-decode txs enc)
                    [(tx-batch/default type)])]})))
 
 (defn ^:dev/after-load start! []

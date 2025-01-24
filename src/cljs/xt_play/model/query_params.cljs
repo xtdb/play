@@ -8,13 +8,15 @@
         (aset arr i (.charCodeAt s i)))
       (js/btoa (apply str (map char (js/Uint8Array. (.-buffer arr))))))))
 
-(defn decode-from-binary [b]
+(defn decode-from-binary [b enc]
   (when b
-    (let [bin (js/atob b)
-          arr (js/Uint8Array. (count bin))]
-      (doseq [i (range (count bin))]
-        (aset arr i (.charCodeAt bin i)))
-      (apply str (map char (js/Uint16Array. (.-buffer arr)))))))
+    (let [bin (js/atob b)]
+      (if (empty? enc)
+        bin
+        (let [arr (js/Uint8Array. (count bin))]
+          (doseq [i (range (count bin))]
+            (aset arr i (.charCodeAt bin i)))
+          (apply str (map char (js/Uint16Array. (.-buffer arr)))))))))
 
 (defn get-query-params []
   (->> (js/URLSearchParams. (.-search js/window.location))
