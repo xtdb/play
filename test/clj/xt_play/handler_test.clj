@@ -24,39 +24,40 @@
   (with-stubs
     #(do
        (t/testing "xtql example sends expected payload to xtdb"
-         (clean-db)
-         (h/run-handler (t-file "xtql-example-request"))
-         (let [[txs query] @db]
-           (t/is (= 2 (count @db)))
-           (t/is (= [[:put-docs :docs {:xt/id 1, :foo "bar"}]]
-                    txs))
-           (t/is (= '(from :docs [xt/id foo])
-                    query))))
+           (clean-db)
+           (h/run-handler (t-file "xtql-example-request"))
+           (let [[txs query] @db]
+             (t/is (= 2 (count @db)))
+             (t/is (= [[:put-docs :docs {:xt/id 1, :foo "bar"}]]
+                      txs))
+             (t/is (= '(from :docs [xt/id foo])
+                      query))))
 
        (t/testing "sql example sends expected payload to xtdb"
-         (clean-db)
-         (h/run-handler (t-file "sql-example-request"))
-         (let [[txs query] @db]
-           (t/is (= 2 (count @db)))
-           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-                     [:sql "
+           (clean-db)
+           (h/run-handler (t-file "sql-example-request"))
+           (let [[txs query] @db]
+             (t/is (= 2 (count @db)))
+             (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
+                       [:sql "
 INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]
-                  txs))
-           (t/is (= "SELECT * FROM docs"
-                  query))
-           (t/is (not (str/includes? (first txs) ";")))))
+                      txs))
+             (t/is (= "SELECT * FROM docs"
+                      query))
+             (t/is (not (str/includes? (first txs) ";")))))
 
        (t/testing "beta sql example sends expected payload to xtdb"
          (clean-db)
          (h/run-handler (t-file "beta-sql-example-request"))
-         (let [[txs query] @db]
-           (t/is (= 2 (count @db)))
-           (t/is (= ["INSERT INTO docs (_id, col1) VALUES (1, 'foo');
-INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
-                  txs))
+         (let [[tx1 tx2 query] @db]
+           (t/is (= 3 (count @db)))
+           (t/is (= ["INSERT INTO docs (_id, col1) VALUES (1, 'foo');"]
+                    tx1))
+           (t/is (= ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
+                    tx2))
            (t/is (= ["SELECT * FROM docs"]
-                  query))
-           (t/is (str/includes? (first txs) ";")))))))
+                    query))
+           (t/is (str/includes? tx1 ";")))))))
 
 (t/deftest run-handler-multi-transactions-test
   (with-stubs

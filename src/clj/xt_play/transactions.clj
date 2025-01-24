@@ -24,11 +24,13 @@
   [tx-batches]
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
-     [(when system-time
-        [(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)])
-      [txs]
-      (when system-time
-        ["COMMIT"])])))
+            (concat
+             (when system-time
+               [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
+             (mapv (fn [q] (vector (str q ";")))
+                   (str/split txs #"\s*;\s*"))
+             (when system-time
+               [["COMMIT"]])))))
 
 (defn format-system-time [s]
   (when s (read-instant-date s)))
@@ -68,8 +70,9 @@
 (defn- run!-with-jdbc-conn [tx-batches query]
   (xtdb/with-jdbc
     (fn [conn]
-      (doseq [tx (prepare-statements tx-batches)
-              statement tx]
+      (doseq [txs (prepare-statements tx-batches)
+              statement txs]
+        (log/info "after prepare-statements" txs)
         (log/info "beta executing statement:" statement)
         (xtdb/jdbc-execute! conn statement))
       (log/info "beta running query:" query)
@@ -99,4 +102,3 @@
       (run!-tx node "sql"
                (mapv #(update % :txs util/read-edn) tx-batches)
                (util/read-edn query)))))
-
