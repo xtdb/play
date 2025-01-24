@@ -25,7 +25,7 @@
   :-> :copy-tick)
 
 (defn- param-encode [tx-batches]
-  (-> tx-batches clj->js js/JSON.stringify js/btoa))
+  (-> tx-batches clj->js js/JSON.stringify query-params/encode-to-binary))
 
 (rf/reg-event-fx
  :update-url
@@ -33,7 +33,7 @@
    {::query-params/set {:version (:version db)
                         :type (name (:type db))
                         :txs (param-encode (tx-batch/batch-list db))
-                        :query (js/btoa (:query db))}}))
+                        :query (query-params/encode-to-binary (:query db))}}))
 
 (rf/reg-event-fx
   :dropdown-selection

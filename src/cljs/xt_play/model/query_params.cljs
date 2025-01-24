@@ -1,6 +1,21 @@
 (ns xt-play.model.query-params
   (:require [re-frame.core :as rf]))
 
+(defn encode-to-binary [s]
+  (when s
+    (let [arr (js/Uint16Array. (count s))]
+      (doseq [i (range (count s))]
+        (aset arr i (.charCodeAt s i)))
+      (js/btoa (apply str (map char (js/Uint8Array. (.-buffer arr))))))))
+
+(defn decode-from-binary [b]
+  (when b
+    (let [bin (js/atob b)
+          arr (js/Uint8Array. (count bin))]
+      (doseq [i (range (count bin))]
+        (aset arr i (.charCodeAt bin i)))
+      (apply str (map char (js/Uint16Array. (.-buffer arr)))))))
+
 (defn get-query-params []
   (->> (js/URLSearchParams. (.-search js/window.location))
        (map (fn [param]

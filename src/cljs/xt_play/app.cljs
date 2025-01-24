@@ -19,25 +19,25 @@
 
 ;; TODO: Special case existing txs
 (defn- param-decode [s]
-  (let [txs (-> s js/atob js/JSON.parse (js->clj :keywordize-keys true))]
+  (let [txs (-> s query-params/decode-from-binary js/JSON.parse (js->clj :keywordize-keys true))]
     (->> txs
          (map #(update % :system-time (fn [d] (when d (js/Date. d))))))))
 
 (rf/reg-event-fx
-  ::init
-  [(rf/inject-cofx ::query-params/get)]
-  (fn [{:keys [query-params]} [_ xt-version]]
-    (let [{:keys [type txs query]} query-params
-          type (if type (keyword type) :sql)]
-      {:db {:version xt-version
-            :type type
-            :query (if query
-                     (js/atob query)
-                     (query/default type))}
-       :dispatch [::tx-batch/init
-                  (if txs
-                    (param-decode txs)
-                    [(tx-batch/default type)])]})))
+ ::init
+ [(rf/inject-cofx ::query-params/get)]
+ (fn [{:keys [query-params]} [_ xt-version]]
+   (let [{:keys [type txs query]} query-params
+         type (if type (keyword type) :sql)]
+     {:db {:version xt-version
+           :type type
+           :query (if query
+                    (query-params/decode-from-binary query)
+                    (query/default type))}
+      :dispatch [::tx-batch/init
+                 (if txs
+                   (param-decode txs)
+                   [(tx-batch/default type)])]})))
 
 (defn ^:dev/after-load start! []
   (log/info :start "start")
