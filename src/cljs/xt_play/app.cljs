@@ -3,7 +3,9 @@
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
-            [reagent.dom :as r-dom]
+            ["react-dom/client" :refer [createRoot]]
+            [reagent.core :as r]
+            [goog.dom :as gdom]
             [xt-play.components.highlight :as hl]
             [xt-play.model.query :as query]
             [xt-play.model.query-params :as query-params]
@@ -42,11 +44,13 @@
                    (param-decode txs enc)
                    [(tx-batch/default type)])]})))
 
+(defonce root (createRoot (gdom/getElement "app")))
+
 (defn ^:dev/after-load start! []
   (log/info :start "start")
   (hl/setup)
   (rf/dispatch-sync [::init js/xt_version])
-  (r-dom/render [view/app] (js/document.getElementById "app")))
+  (.render root (r/as-element [view/app])))
 
 (defn ^:export init []
   ;; init is called ONCE when the page loads
