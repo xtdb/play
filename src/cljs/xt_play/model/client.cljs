@@ -32,8 +32,8 @@
  (fn [{:keys [db]} _]
    {::query-params/set {:version (:version db)
                         :type (name (:type db))
+                        :enc 2
                         :txs (param-encode (tx-batch/batch-list db))
-                        :enc (:enc db)
                         :query (query-params/encode-to-binary (:query db))}}))
 
 (rf/reg-event-fx

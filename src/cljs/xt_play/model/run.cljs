@@ -20,7 +20,7 @@
 (defn run [db]
   {:db (-> db
            (assoc ::loading? true
-                  :enc 1)
+                  :enc 2)
            (dissoc ::failure ::results ::response?))
    :http-xhrio (db-run-opts db)})
 
