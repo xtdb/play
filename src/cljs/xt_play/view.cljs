@@ -286,7 +286,7 @@
         tx-refs (atom [])]
     (fn []
       [:div {:class "flex flex-col h-dvh"}
-       [header tx-type query-ref tx-refs]
+       [header @tx-type query-ref tx-refs]
        ;; overflow-hidden fixes a bug where if an editor would have content that
        ;; goes off the screen the whole page would scroll.
        [:div {:class "py-2 flex-grow md:overflow-hidden h-full flex flex-col gap-2"}
