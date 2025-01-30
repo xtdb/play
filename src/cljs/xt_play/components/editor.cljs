@@ -66,14 +66,15 @@
                                              "xt$system_from" "xt$system_to"]}
                 :upperCaseKeywords true})])
 
-(defn editor [{:keys [source extensions] my-class :class :as opts}]
+(defn editor [{:keys [source extensions editor-ref] my-class :class :as opts}]
   [:div {:class my-class}
-    [:> CodeMirror (merge
-                    {:value source
-                     :extensions extensions
-                     :basicSetup false
-                     :className "h-full"}
-                    (select-keys opts [:on-change :on-blur :on-focus]))]])
+   [:> CodeMirror (merge
+                   {:value source
+                    :ref #(swap! editor-ref assoc :ref %)
+                    :extensions extensions
+                    :basicSetup false
+                    :className "h-full"}
+                   (select-keys opts [:on-blur :on-focus]))]])
 
 (defn clj-editor [opts]
   [editor (merge opts {:extensions clj-extensions})])

@@ -26,13 +26,18 @@
 
 (defn- spinner [] [:div "Loading..."]) ;; todo spinners spin
 
-(defn- editor-update-opts [id source]
+(defn get-value [ref]
+  (when @ref
+    (.. (:ref @ref) -view -viewState -state -doc -text (join "\n"))))
+
+(defn- editor-update-opts [id source ref]
   {:source source
+   :editor-ref ref
    :on-focus #(rf/dispatch [::i/start-editing])
-   :on-change #(rf/dispatch (if (= :query id)
-                              [:set-query %]
-                              [::tx-batch/assoc id :txs %]))
    :on-blur #(do
+               (rf/dispatch (if (= :query id)
+                              [:set-query (get-value ref)]
+                              [::tx-batch/assoc id :txs (get-value ref)]))
                (rf/dispatch [:update-url])
                (rf/dispatch [::i/stop-editing]))})
 
@@ -79,19 +84,21 @@
   (into [:h2 {:class "text-lg font-semibold"}]
         body))
 
-(defn- button [opts & body]
-  (into [:button (merge {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"}
-                        opts)]
-        body))
+(defn- update-db-from-editor-refs [query-ref tx-refs]
+  (doseq [tx-ref @tx-refs]
+    (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)]))
+  (rf/dispatch [:set-query (get-value query-ref)]))
 
-(defn- run-button []
-  [button {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"
-           :on-click #(rf/dispatch [::run/run])}
+(defn- run-button [query-ref tx-refs]
+  [:button {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"
+            :on-click #(do
+                         (update-db-from-editor-refs query-ref tx-refs)
+                         (rf/dispatch [::run/run]))}
    [:div {:class "flex flex-row gap-1 items-center"}
     "Run"
     [:> PlayIcon {:class "h-5 w-5"}]]])
 
-(defn- copy-button []
+(defn- copy-button [query-ref tx-refs]
   (let [copy-tick (rf/subscribe [:copy-tick])]
     (fn []
       [:div {:class (str "p-2 flex flex-row gap-1 items-center select-none"
@@ -103,6 +110,11 @@
                          ;; blur. This means that sometimes the url hasn't got
                          ;; the latest updates from the app-db. Ensure that's
                          ;; not the case by updating before copying
+
+                         ;; given that it's no longer controlled component - need to get values
+                         ;; of the editor from the refs
+                         (update-db-from-editor-refs query-ref tx-refs)
+
                          (rf/dispatch-sync [:update-url])
                          (rf/dispatch-sync [:copy-url]))}
 
@@ -121,7 +133,7 @@
            :src "/public/images/xtdb-full-logo.svg"}]
     [title "Play"]]])
 
-(defn- header [tx-type]
+(defn- header [tx-type query-ref tx-refs]
   [:header {:class "max-md:sticky top-0 z-50 bg-gray-200 py-2 px-4"}
    [:div {:class "container mx-auto flex flex-col md:flex-row items-center gap-1"}
     [:div {:class "w-full flex flex-row items-center gap-4"}
@@ -132,8 +144,8 @@
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown tx-type]
      [:div {:class "md:hidden flex-grow"}]
-     [copy-button]
-     [run-button]]]])
+     [copy-button query-ref tx-refs]
+     [run-button query-ref tx-refs]]]])
 
 (def beta-copy
   (str "We are currently testing a new SQL framework for XTDB Play which utilises more of XTDB 2.0s powerful new features. "
@@ -173,38 +185,44 @@
                   :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :system-time (js/Date. (.toDateString (js/Date.)))]]
                                                 [:dispatch [:update-url]]]])}])
 
-(defn- single-transaction [{:keys [editor id]} {:keys [system-time txs]}]
-  [:div {:class "h-full flex flex-col"}
-   (when system-time
-     [:div {:class "flex flex-row justify-center items-center py-1 px-5 bg-gray-200"}
-      [input-system-time id system-time]
-      [reset-system-time-button id]])
-   [editor (merge
-            (editor-update-opts id txs)
-            {:class "border md:flex-grow min-h-36"})]])
+(defn- single-transaction [{:keys [editor id tx-refs]} {:keys [system-time txs]}]
+  (let [ref (atom {:id id :ref nil})]
+    (reset! tx-refs [ref])
+    [:div {:class "h-full flex flex-col"}
+     (when system-time
+       [:div {:class "flex flex-row justify-center items-center py-1 px-5 bg-gray-200"}
+        [input-system-time id system-time]
+        [reset-system-time-button id]])
+     [editor (merge
+              (editor-update-opts id txs ref)
+              {:class "border md:flex-grow min-h-36"})]]))
 
-(defn- multiple-transactions [{:keys [editor]} tx-batches]
+(defn- multiple-transactions [{:keys [editor tx-refs]} tx-batches]
+  (reset! tx-refs [])
   [:<>
-   (for [[id {:keys [system-time txs]}] tx-batches]
-     ^{:key id}
-     [:div {:class "flex flex-col"}
-      [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200"}
-       [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
-        (if (nil? system-time)
-          [:<>
-           [:div "Current Time"]
-           [edit-system-time-button id]]
-          [:<>
-           [input-system-time id system-time]
-           [reset-system-time-button id]])]
-       [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
-                      :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/delete id]]
-                                                    [:dispatch [:update-url]]]])}]]
-      [editor (merge
-               (editor-update-opts id txs)
-               {:class "border md:flex-grow min-h-36"})]])])
+   (for [[id {:keys [system-time txs]}] tx-batches
+         :let [ref (atom {:id id :ref nil})]]
+     (do
+       (swap! tx-refs conj ref)
+       ^{:key id}
+       [:div {:class "flex flex-col"}
+        [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200"}
+         [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
+          (if (nil? system-time)
+            [:<>
+             [:div "Current Time"]
+             [edit-system-time-button id]]
+            [:<>
+             [input-system-time id system-time]
+             [reset-system-time-button id]])]
+         [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
+                        :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/delete id]]
+                                                      [:dispatch [:update-url]]]])}]]
+        [editor (merge
+                 (editor-update-opts id txs ref)
+                 {:class "border md:flex-grow min-h-36"})]]))])
 
-(defn- transactions [{:keys [editor]}]
+(defn- transactions [opts]
   [:div {:class (str "mx-4 md:mx-0 md:ml-4 md:flex-1 flex flex-col "
                      ;; stop editor expanding beyond the viewport
                      "md:max-w-[48vw] lg:max-w-[49vw]")}
@@ -215,10 +233,9 @@
     (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])]
       (if (= 1 (count tx-batches))
         (let [[id batch] (first tx-batches)]
-          [single-transaction {:editor editor
-                               :id id}
+          [single-transaction (assoc opts :id id)
            batch])
-        [multiple-transactions {:editor editor}
+        [multiple-transactions opts
          tx-batches]))
     [:div {:class "flex flex-row justify-center"}
      [:button {:class "w-10 h-10 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 rounded-full"
@@ -226,13 +243,13 @@
                                              [:dispatch [:update-url]]]])}
       "+"]]]])
 
-(defn- query [{:keys [editor]}]
+(defn- query [{:keys [editor query-ref]}]
   [:div {:class (str "mx-4 md:mx-0 md:mr-4 md:flex-1 flex flex-col "
                      ;; stop editor expanding beyond the viewport
                      "md:max-w-[48vw] lg:max-w-[49vw]")}
    [:h2 "Query:"]
    [editor (merge
-            (editor-update-opts :query @(rf/subscribe [:query]))
+            (editor-update-opts :query @(rf/subscribe [:query]) query-ref)
             {:class "md:flex-grow h-full min-h-36 border"})]])
 
 (def ^:private initial-message [:p {:class "text-gray-400"} "Enter a query to see results"])
@@ -264,15 +281,19 @@
 (defn app []
   (let [tx-type (rf/subscribe [:get-type])
         loading? (rf/subscribe [::run/loading?])
-        results? (rf/subscribe [::run/results?])]
+        results? (rf/subscribe [::run/results?])
+        query-ref (atom {:id :query :ref nil})
+        tx-refs (atom [])]
     (fn []
       [:div {:class "flex flex-col h-dvh"}
-       [header @tx-type]
+       [header tx-type query-ref tx-refs]
        ;; overflow-hidden fixes a bug where if an editor would have content that
        ;; goes off the screen the whole page would scroll.
        [:div {:class "py-2 flex-grow md:overflow-hidden h-full flex flex-col gap-2"}
         [:section {:class "md:h-1/2 flex flex-col md:flex-row flex-1 gap-2"}
-         (let [ctx {:editor (editor/default-editor @tx-type)}]
+         (let [ctx {:editor (editor/default-editor @tx-type)
+                    :query-ref query-ref
+                    :tx-refs tx-refs}]
            [:<>
             [transactions ctx]
             mobile-gap
