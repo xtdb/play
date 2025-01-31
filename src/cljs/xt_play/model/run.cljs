@@ -32,18 +32,25 @@
 
 (rf/reg-event-db
  ::request-success
-  (fn [db [_ results]]
-    (-> db
-        (dissoc ::loading?)
-        (assoc ::response? true)
-        (assoc ::results results))))
+ (fn [db [_ results]]
+   (-> db
+       (dissoc ::loading?)
+       (assoc ::response? true
+              ::results results
+              ::show-results? true))))
 
 (rf/reg-event-db
  ::request-failure
   (fn [db [_ {:keys [response] :as _failure-map}]]
     (-> db
         (dissoc ::loading?)
-        (assoc ::failure response))))
+        (assoc ::failure response
+               ::show-results? true))))
+
+(rf/reg-event-db
+ ::hide-results!
+ (fn [db _]
+   (dissoc db ::show-results?)))
 
 (rf/reg-sub
  ::results-or-failure
@@ -60,6 +67,10 @@
 (rf/reg-sub
  ::loading?
   :-> ::loading?)
+
+(rf/reg-sub
+ ::show-results?
+  :-> ::show-results?)
 
 (comment
   (require '[re-frame.db :as db])
