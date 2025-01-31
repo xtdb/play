@@ -11,7 +11,6 @@
             [xt-play.components.highlight :as hl]
             [xt-play.config :as config]
             [xt-play.model.client :as model]
-            [xt-play.model.interval :as i]
             [xt-play.model.run :as run]
             [xt-play.model.tx-batch :as tx-batch]))
 
@@ -33,14 +32,11 @@
 (defn- editor-update-opts [id source ref]
   {:source source
    :editor-ref ref
-   :on-focus #(rf/dispatch [::i/start-editing])
    :on-blur #(do
                (rf/dispatch (if (= :query id)
                               [:set-query (get-value ref)]
                               [::tx-batch/assoc id :txs (get-value ref)]))
-               (rf/dispatch [:update-url])
-               (rf/dispatch [::i/stop-editing]))})
-
+               (rf/dispatch [:update-url]))})
 (defn- display-error [{:keys [exception message data]}]
   [:div {:class "flex flex-col gap-2"}
    [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-4"}
