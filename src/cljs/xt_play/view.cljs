@@ -258,24 +258,25 @@
         show-results? (rf/subscribe [::run/show-results?])
         results-or-failure (rf/subscribe [::run/results-or-failure])]
     (fn []
-      (when @show-results?
+      (when (or @loading?
+                @show-results?)
         [:section {:class "md:h-1/2 mx-4 flex flex-1 flex-col"}
-        [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200"}
-         [:h2 "Results:"]
-         [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
-                        :on-click #(rf/dispatch [::run/hide-results!])}]]
-        [:div {:class "grow min-h-0 border p-2 overflow-auto"}
-         (if @loading?
-           [spinner]
-           (let [{::run/keys [results failure response?]} @results-or-failure]
-             (if failure
-               [display-error failure]
-               (cond
-                 (not response?) initial-message
-                 (empty? results) no-results-message
-                 (every? empty? results) (empty-rows-message results)
-                 :else
-                 [display-table results tx-type]))))]]))))
+         [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200"}
+          [:h2 "Results:"]
+          [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
+                         :on-click #(rf/dispatch [::run/hide-results!])}]]
+         [:div {:class "grow min-h-0 border p-2 overflow-auto"}
+          (if @loading?
+            [spinner]
+            (let [{::run/keys [results failure response?]} @results-or-failure]
+              (if failure
+                [display-error failure]
+                (cond
+                  (not response?) initial-message
+                  (empty? results) no-results-message
+                  (every? empty? results) (empty-rows-message results)
+                  :else
+                  [display-table results tx-type]))))]]))))
 
 (def ^:private mobile-gap [:hr {:class "md:hidden"}])
 
