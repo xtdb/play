@@ -3,6 +3,8 @@
             [clojure.test :as t]
             [clojure.data.json :as json]
             [next.jdbc :as jdbc]
+            #_:clj-kondo/ignore
+            [time-literals.data-readers :as time]
             [xt-play.handler :as h]
             [xtdb.api :as xt]))
 
@@ -101,8 +103,8 @@
                                     (swap! txs conj statement))]
         (h/run-handler (t-file "beta-sql-example-request"))
         (t/is
-         (= [[(str "INSERT INTO docs (_id, col1) VALUES (1, 'foo');\n"
-                   "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};")]
+         (= [["INSERT INTO docs (_id, col1) VALUES (1, 'foo');"]
+             ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
              ["SELECT * FROM docs"]]
             @txs)))))
 
@@ -114,7 +116,20 @@
         (t/is
          (= [[[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
               [:sql "\nINSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]]
-            @txs))))))
+            @txs)))))
+
+  (t/testing "erroneous statement returns error in v2"
+    (t/is
+     (= {:status 400
+         :body {:message "+ not applicable to types tstz-range and interval"
+                :exception "xtdb.IllegalArgumentException"
+                :data {:xtdb.error/error-key "xtdb.expression/function-type-mismatch"}}}
+        (h/run-handler
+         {:parameters
+          {:body
+           {:tx-type "sql-beta",
+            :tx-batches [],
+            :query "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"}}})))))
 
 (t/deftest sql-says-carol-is-red-test
   (t/testing "XTDB docs example for sql https://docs.xtdb.com/quickstart/sql-overview.html"

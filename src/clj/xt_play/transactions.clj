@@ -72,7 +72,6 @@
     (fn [conn]
       (doseq [txs (prepare-statements tx-batches)
               statement txs]
-        (log/info "after prepare-statements" txs)
         (log/info "beta executing statement:" statement)
         (xtdb/jdbc-execute! conn statement))
       (log/info "beta running query:" query)
