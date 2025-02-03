@@ -2,7 +2,8 @@
   (:require ["@heroicons/react/24/outline"
              :refer [BookmarkIcon CheckCircleIcon QuestionMarkCircleIcon]]
             ["@heroicons/react/24/solid"
-             :refer [ArrowUturnLeftIcon PencilIcon PlayIcon XMarkIcon]]
+             :refer [ArrowUturnLeftIcon PencilIcon PlayIcon XMarkIcon CheckIcon]]
+            ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
             [reagent.core :as r]
@@ -23,7 +24,7 @@
              :on-click #(rf/dispatch [:dropdown-selection (:value %)])
              :label (get-in config/tx-types [tx-type :label])}])
 
-(defn- spinner [] [:div "Loading..."]) ;; todo spinners spin
+(defn- spinner [] [:div [:> SixDotsScale]])
 
 (defn get-value [ref]
   (when @ref
@@ -86,13 +87,24 @@
   (rf/dispatch [:set-query (get-value query-ref)]))
 
 (defn- run-button [query-ref tx-refs]
-  [:button {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"
-            :on-click #(do
-                         (update-db-from-editor-refs query-ref tx-refs)
-                         (rf/dispatch [::run/run]))}
-   [:div {:class "flex flex-row gap-1 items-center"}
-    "Run"
-    [:> PlayIcon {:class "h-5 w-5"}]]])
+  (let [loading? (rf/subscribe [::run/loading?])
+        show-results? (rf/subscribe [::run/show-results?])]
+    [:<>
+     [:button {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-sm"
+               :disabled @loading?
+               :opacity (if @loading? 0.4 1)
+               :on-click #(do
+                            (update-db-from-editor-refs query-ref tx-refs)
+                            (rf/dispatch [::run/run]))}
+      [:div {:class "flex flex-row gap-1 items-center"}
+       "Run"
+       [:> PlayIcon {:class "h-5 w-5"}]]]
+     [:> CheckIcon
+      {:class "h-5 w-5"
+       :visibility (if (and (not @loading?)
+                            @show-results?)
+                     "visible"
+                     "hidden")}]]))
 
 (defn- copy-button [query-ref tx-refs]
   (let [copy-tick (rf/subscribe [:copy-tick])]

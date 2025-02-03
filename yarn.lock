@@ -11897,6 +11897,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-svg-spinners@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "react-svg-spinners@npm:0.3.1"
+  peerDependencies:
+    react: ^18.2.0
+    react-dom: ^18.2.0
+  checksum: cb2413f33e75ee2e11a4a043585354766c90a53b5325847589b295429bcd78eedf252883c4cc94926e559b9fc17d105666d640d40cc18f24cefbc89894207409
+  languageName: node
+  linkType: hard
+
 "react@npm:^18.3.1":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
@@ -14679,6 +14689,7 @@ __metadata:
     react: ^18.3.1
     react-dom: ^18.3.1
     react-scripts: ^5.0.1
+    react-svg-spinners: ^0.3.1
     shadow-cljs: ^2.28.14
     tailwindcss: ^3.4.11
     w3c-keyname: ^2.2.8
