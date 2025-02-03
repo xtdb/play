@@ -27,8 +27,14 @@
 (defn- spinner [] [:div [:> SixDotsScale]])
 
 (defn get-value [ref]
-  (when @ref
-    (.. (:ref @ref) -view -viewState -state -doc -text (join "\n"))))
+  (when-let [refd @ref]
+    (let [doc (.. (:ref refd) -view -viewState -state -doc)
+          text-lines (if-let [children (.-children doc)]
+                       ;; get each chile's text
+                       (.map children (fn [c] (.. c -text (join "\n"))))
+                       ;; no children - just get text
+                       (.-text doc))]
+      (.join text-lines "\n"))))
 
 (defn- editor-update-opts [id source ref]
   {:source source
