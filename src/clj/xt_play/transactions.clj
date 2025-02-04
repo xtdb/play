@@ -38,8 +38,7 @@
 (defn- PG->clj [v]
   (cond
     (instance? org.postgresql.util.PGobject v) (-> (.getValue v)
-                                                   (j/write-value-as-bytes j/default-object-mapper)
-                                                   (j/read-value j/default-object-mapper))
+                                                   (j/read-value j/keyword-keys-object-mapper))
     (instance? org.postgresql.jdbc.PgArray v) (->> (.getArray v)
                                                    (into [])
                                                    (str/join ",")
