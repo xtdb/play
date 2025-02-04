@@ -127,7 +127,7 @@
         (h/run-handler
          {:parameters
           {:body
-           {:tx-type "sql-beta",
+           {:tx-type "sql-v2",
             :tx-batches [],
             :query "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"}}})))))
 
@@ -166,7 +166,7 @@
              (h/run-handler (assoc-in
                              (t-file "sql-multi-transaction")
                              [:parameters :body :tx-type]
-                             "sql-beta")))))
+                             "sql-v2")))))
 
   (t/testing "Bob still likes fishing - don't determine columns based on the first row"
     (t/is (= {:status 200,
@@ -177,7 +177,7 @@
              (h/run-handler
               (->  (t-file "sql-multi-transaction")
                    (assoc-in [:parameters :body :query] "SELECT * FROM people")
-                   (assoc-in [:parameters :body :tx-type] "sql-beta")))))))
+                   (assoc-in [:parameters :body :tx-type] "sql-v2")))))))
 
 (def docs-json
  "{\"tx-batches\":[{\"txs\":\"[[:sql \\\"INSERT INTO product (_id, name, price) VALUES\\\\n(1, 'An Electric Bicycle', 400)\\\"]]\",\"system-time\":\"2024-01-01\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 405 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-05\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 350 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-10\"}],\"query\":\"\\\"SELECT *, _valid_from\\\\nFROM product\\\\nFOR VALID_TIME ALL -- i.e. \\\\\\\"show me all versions\\\\\\\"\\\\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \\\\\\\"...as observed at month end\\\\\\\"\\\"\"}"

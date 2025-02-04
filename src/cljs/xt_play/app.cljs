@@ -32,7 +32,12 @@
  [(rf/inject-cofx ::query-params/get)]
  (fn [{:keys [query-params]} [_ xt-version]]
    (let [{:keys [type txs query enc]} query-params
-         type (if type (keyword type) :sql)]
+         ;; in case of saved link with sql-beta - translate to sql-v2
+         type (keyword
+               (if (or (empty? type)
+                       (= "sql-beta" type))
+                 "sql-v2"
+                 type))]
      {:db {:version xt-version
            :type type
            :enc enc

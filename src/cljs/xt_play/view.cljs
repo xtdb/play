@@ -1,12 +1,11 @@
 (ns xt-play.view
   (:require ["@heroicons/react/24/outline"
-             :refer [BookmarkIcon CheckCircleIcon QuestionMarkCircleIcon]]
+             :refer [BookmarkIcon CheckCircleIcon]]
             ["@heroicons/react/24/solid"
              :refer [ArrowUturnLeftIcon PencilIcon PlayIcon XMarkIcon CheckIcon]]
             ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
-            [reagent.core :as r]
             [xt-play.components.dropdown :refer [dropdown]]
             [xt-play.components.editor :as editor]
             [xt-play.components.highlight :as hl]
@@ -165,19 +164,6 @@
   (str "We are currently testing a new SQL framework for XTDB Play which utilises more of XTDB 2.0s powerful new features. "
        "Feel free to stick arround and have a play, but if you want to return to safty, select a different mode from the dropdown"))
 
-(defn- beta-banner []
-  (when (:show-beta? config/config)
-    (let [expanded? (r/atom false)]
-      (fn []
-        [:footer {:class "sticky max-md:hidden bottom-0 z-50 bg-red-200 py-2 px-4"}
-         [:div {:class "container text-red-900 mx-auto flex flex-col items-center gap-1 cursor-pointer"
-                :on-click #(swap! expanded? not)}
-          (if-not @expanded?
-            [:div {:class "flex items-center gap-1"}
-             "You are in beta mode."
-             [:> QuestionMarkCircleIcon {:class "h-5 w-5"}]]
-            [:p beta-copy])]]))))
-
 (defn- reset-system-time-button [id]
   [:> ArrowUturnLeftIcon
    {:class "h-5 w-5 cursor-pointer"
@@ -320,6 +306,4 @@
             [query ctx]
             mobile-gap])]
         (when (or @loading? @results?)
-          [results])]
-       (when (= :sql-beta @tx-type)
-         [beta-banner])])))
+          [results])]])))

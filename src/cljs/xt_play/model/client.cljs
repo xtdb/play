@@ -69,8 +69,4 @@
 
 (def items
   (vec
-   (keep (fn [tx-type]
-           (when (or (:show-beta? config/config)
-                     (not (:beta? tx-type)))
-             (select-keys tx-type [:value :label])))
-         (vals config/tx-types))))
+   (vals config/tx-types)))

@@ -4,6 +4,7 @@
             [xt-play.model.tx-batch :as tx-batch]))
 
 (defn- db-run-opts [{:keys [query type] :as db}]
+  (js/console.log "db-run-opts" db)
   (let [params {:tx-type type
                 :query query
                 :tx-batches (map #(update % :system-time (fn [d] (when d (.toISOString d))))

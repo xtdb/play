@@ -87,7 +87,7 @@
   (let [query (if (= "xtql" tx-type) (util/read-edn query) query)]
     (xtdb/with-xtdb
       (fn [node]
-        (if (= "sql-beta" tx-type)
+        (if (= "sql-v2" tx-type)
           (run!-with-jdbc-conn tx-batches query)
           (let [res (run!-tx node tx-type tx-batches query)]
             (util/map-results->rows res)))))))

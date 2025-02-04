@@ -40,7 +40,7 @@
 (s/def ::txs string?)
 (s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs])))
 (s/def ::query string?)
-(s/def ::tx-type #{"sql-beta" "xtql" "sql"})
+(s/def ::tx-type #{"sql-v2" "xtql" "sql"})
 (s/def ::db-run (s/keys :req-un [::tx-batches ::query]))
 (s/def ::beta-db-run (s/keys :req-un [::tx-batches ::query ::tx-type]))
 
