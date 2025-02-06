@@ -19,10 +19,11 @@
   (let [tx (xt/submit-tx node txs opts)
         results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
                       {:args {:tx-id (:tx-id tx)}})]
-    (log/info :submit-tx results)
+    (log/info :submit-tx-result results)
     ;; If any transaction fails, throw the error
-    (when-let [error (-> results first :xt/error)]
-      (throw error))))
+    (if-let [error (-> results first :xt/error)]
+      (throw error)
+      results)))
 
 (defn query [node q]
   (log/info :query q)

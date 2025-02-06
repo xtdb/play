@@ -24,13 +24,16 @@
   [tx-batches]
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
-            (concat
-             (when system-time
-               [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
-             (mapv (fn [q] (vector (str q ";")))
-                   (str/split txs #"\s*;\s*"))
-             (when system-time
-               [["COMMIT"]])))))
+            (when txs
+              (concat
+               (when system-time
+                 [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
+               (vec
+                (keep (fn [q] (when-not (empty? q)
+                                (vector (str/trim q))))
+                      (str/split txs #"\s*;\s*")))
+               (when system-time
+                 [["COMMIT"]]))))))
 
 (defn format-system-time [s]
   (when s (read-instant-date s)))
@@ -57,26 +60,52 @@
 (defn- run!-tx [node tx-type tx-batches query]
   (let [tx-batches (->> tx-batches
                         (map #(update % :system-time format-system-time))
-                        (map #(update % :txs (partial encode-txs tx-type))))]
-    (doseq [{:keys [system-time txs] :as batch} tx-batches]
-      (log/info tx-type "running batch: " batch)
-      (xtdb/submit! node txs {:system-time system-time})))
-  (log/info tx-type "running query:" query)
-  (let [res (xtdb/query node query)]
-    (log/info tx-type "XTDB query response:" res)
-    res))
+                        (map #(update % :txs (partial encode-txs tx-type))))
+        tx-results
+        (doall (mapv
+                (fn [{:keys [system-time txs] :as batch}]
+                  (log/info tx-type "running batch: " batch)
+                  (xtdb/submit! node txs {:system-time system-time}))
+                tx-batches))]
+    (log/info tx-type "running query:" query)
+    (let [res (xtdb/query node query)]
+      (log/info tx-type "XTDB query response:" res)
+      [tx-results res])))
+
 
 (defn- run!-with-jdbc-conn [tx-batches query]
   (xtdb/with-jdbc
     (fn [conn]
-      (doseq [txs (prepare-statements tx-batches)
-              statement txs]
-        (log/info "beta executing statement:" statement)
-        (xtdb/jdbc-execute! conn statement))
-      (log/info "beta running query:" query)
-      (let [res (xtdb/jdbc-execute! conn [query])]
-        (log/info "beta query response" res)
-        (parse-result res)))))
+      (let [tx-results
+            (vec
+             (doall
+              (map (fn [txs]
+                     (vec
+                      (mapcat (fn [statement]
+                                (log/info "beta executing statement:" statement)
+                                (try
+                                  (let [st-res (xtdb/jdbc-execute! conn statement)]
+                                    ;; hack to get it into right shape - TXs seem to always return
+                                    ;; {:next.jdbc/update-count 0} - which comes out wrapped one times too many
+                                    (first (parse-result st-res)))
+                                  (catch Exception ex
+                                    (log/error "Exception while running statement" ex)
+                                    {:message (ex-message ex)
+                                     :exception (.getClass ex)
+                                     :data (ex-data ex)})))
+                              txs)))
+                   (prepare-statements tx-batches))))]
+        (log/info "beta running query:" query)
+        (try
+          (let [res (xtdb/jdbc-execute! conn [query])]
+            (log/info "beta query response" res)
+            (into tx-results [(parse-result res)]))
+          (catch Exception ex
+            (log/error "Exception running query" (ex-message ex))
+            (into tx-results [(parse-result
+                               {:message (ex-message ex)
+                                :exception (.getClass ex)
+                                :data (ex-data ex)})])))))))
 
 (defn run!!
   "Given transaction batches, a query and the type of transaction to
@@ -89,7 +118,7 @@
         (if (= "sql-v2" tx-type)
           (run!-with-jdbc-conn tx-batches query)
           (let [res (run!-tx node tx-type tx-batches query)]
-            (util/map-results->rows res)))))))
+            [(first res) (util/map-results->rows (last res))]))))))
 
 (defn docs-run!!
   "Given transaction batches and a query from the docs, will return the query
