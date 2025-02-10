@@ -2,7 +2,7 @@
   (:require ["@heroicons/react/24/outline"
              :refer [BookmarkIcon CheckCircleIcon]]
             ["@heroicons/react/24/solid"
-             :refer [ArrowUturnLeftIcon PencilIcon PlayIcon XMarkIcon CheckIcon]]
+             :refer [PlayIcon XMarkIcon CheckIcon]]
             ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
@@ -39,9 +39,7 @@
   {:source source
    :editor-ref ref
    :on-blur #(do
-               (rf/dispatch (if (= :query id)
-                              [:set-query (get-value ref)]
-                              [::tx-batch/assoc id :txs (get-value ref)]))
+               (rf/dispatch [::tx-batch/assoc id :txs (get-value ref)])
                (rf/dispatch [:update-url]))})
 (defn- display-error [{:keys [exception message data]} position]
   ^{:key position}
@@ -87,12 +85,11 @@
   (into [:h2 {:class "text-lg font-semibold"}]
         body))
 
-(defn- update-db-from-editor-refs [query-ref tx-refs]
+(defn- update-db-from-editor-refs [tx-refs]
   (doseq [tx-ref @tx-refs]
-    (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)]))
-  (rf/dispatch [:set-query (get-value query-ref)]))
+    (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)])))
 
-(defn- run-button [query-ref tx-refs]
+(defn- run-button [tx-refs]
   (let [loading? (rf/subscribe [::run/loading?])
         show-results? (rf/subscribe [::run/show-results?])]
     [:<>
@@ -100,7 +97,7 @@
                :disabled @loading?
                :opacity (if @loading? 0.4 1)
                :on-click #(do
-                            (update-db-from-editor-refs query-ref tx-refs)
+                            (update-db-from-editor-refs tx-refs)
                             (rf/dispatch [::run/run]))}
       [:div {:class "flex flex-row gap-1 items-center"}
        "Run"
@@ -112,7 +109,7 @@
                      "visible"
                      "hidden")}]]))
 
-(defn- copy-button [query-ref tx-refs]
+(defn- copy-button [tx-refs]
   (let [copy-tick (rf/subscribe [:copy-tick])]
     (fn []
       [:div {:class (str "p-2 flex flex-row gap-1 items-center select-none"
@@ -127,7 +124,7 @@
 
                          ;; given that it's no longer controlled component - need to get values
                          ;; of the editor from the refs
-                         (update-db-from-editor-refs query-ref tx-refs)
+                         (update-db-from-editor-refs tx-refs)
 
                          (rf/dispatch-sync [:update-url])
                          (rf/dispatch-sync [:copy-url]))}
@@ -147,7 +144,7 @@
            :src "/public/images/xtdb-full-logo.svg"}]
     [title "Play"]]])
 
-(defn- header [tx-type query-ref tx-refs]
+(defn- header [tx-type tx-refs]
   [:header {:class "max-md:sticky top-0 z-50 bg-gray-200 py-2 px-4"}
    [:div {:class "container mx-auto flex flex-col md:flex-row items-center gap-1"}
     [:div {:class "w-full flex flex-row items-center gap-4"}
@@ -158,33 +155,23 @@
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown tx-type]
      [:div {:class "md:hidden flex-grow"}]
-     [copy-button query-ref tx-refs]
-     [run-button query-ref tx-refs]]]])
+     [copy-button tx-refs]
+     [run-button tx-refs]]]])
 
-(defn- reset-system-time-button [id]
-  [:> ArrowUturnLeftIcon
-   {:class "h-5 w-5 cursor-pointer"
-    :on-click #(rf/dispatch
-                [:fx [[:dispatch [::tx-batch/assoc id :system-time nil]]
-                      [:dispatch [:update-url]]]])}])
-
-(defn- input-system-time [id system-time]
-  ;; TODO: Show the picker when someone clicks the edit button
-  ;;       https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
-  [:input {:type "date"
-           :value (-> system-time .toISOString (str/split #"T") first)
-           :on-change #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :system-time (js/Date. (.. % -target -value))]]
-                                          [:dispatch [:update-url]]]])
-           :max (-> (js/Date.) .toISOString (str/split #"T") first)}])
-
-(defn- edit-system-time-button [id]
-  [:> PencilIcon {:className "h-5 w-5 cursor-pointer"
-                  :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/assoc id :system-time (js/Date. (.toDateString (js/Date.)))]]
-                                                [:dispatch [:update-url]]]])}])
-
-(def ^:private initial-message [:p {:class "text-gray-400"} "Enter a query to see results"])
+(def ^:private initial-message [:p {:class "text-gray-400"} "Enter a statement to see results"])
 (def ^:private no-results-message "No results returned")
 (defn- empty-rows-message [results] (str (count results) " empty row(s) returned"))
+
+(defn- display-tx-result [idx row]
+  (let [[[msg-k msg] [_exc exc] [_dta data]] row]
+    (case msg-k
+      "message" [display-error {:message msg :exception exc :data data} idx]
+      "next.jdbc/update-count" [:p.my-2.mx-2 "Transaction succeeded."]
+      :else nil)))
+
+(defn- tx-result? [row]
+  (let [[[[msg-k _msg] _]] row]
+    (#{"next.jdbc/update-count" "message"} msg-k)))
 
 (defn- results [position]
   (let [tx-type (rf/subscribe [:get-type])
@@ -203,18 +190,16 @@
             (let [{::run/keys [results failure response?]} @results-or-failure]
               (if failure
                 [display-error failure position]
-                (let [the-result (if (= :last position)
-                                   (last results)
-                                   (get results position))
-                      [[msg-k msg] [_exc exc] [_dta data]] the-result]
-                  (cond
-                    (= "message" msg-k) [display-error {:message msg :exception exc :data data} position]
-                    (= "next.jdbc/update-count" msg-k) "Transaction succeeded."
-                    (not response?) initial-message
-                    (empty? results) no-results-message
-                    (every? empty? the-result) (empty-rows-message the-result)
-                    :else
-                    [display-table the-result tx-type position])))))]]))))
+                (let [the-result (get results position)]
+                  (if (tx-result? the-result)
+                    [:div.px-1 {:class (when (> (count results) 1) "pt-6")}
+                     (map-indexed display-tx-result the-result)]
+                    (cond
+                      (not response?) initial-message
+                      (empty? results) no-results-message
+                      (every? empty? the-result) (empty-rows-message the-result)
+                      :else
+                      [display-table the-result tx-type position]))))))]]))))
 
 (defn- captions-row [text]
   (let [show-results? (rf/subscribe [::run/show-results?])]
@@ -232,20 +217,15 @@
                       :visibility (if @show-results? "visible" "hidden")
                       :on-click #(rf/dispatch [::run/hide-results!])}]]]]))
 
-(defn- system-time-input [id system-time]
+(defn- rm-stmt-header [id system-time]
   [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
    [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
-    (if (nil? system-time)
-      [:<>
-       [:div "Current Time"]
-       [edit-system-time-button id]]
-      [:<>
-       [input-system-time id system-time]
-       [reset-system-time-button id]])]
+    (when system-time (str system-time))]
    [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
                   :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/delete id]]
                                                 [:dispatch [:update-url]]]])}]])
-(defn- add-tx-button []
+
+(defn- add-statement-button []
   [:div {:class "flex flex-row"}
    [:div {:class "flex-col flex-1"}
     [:div {:class "flex flex-row justify-center"}
@@ -257,15 +237,15 @@
    [:div {:class "flex-col flex-1"
           :visibility "hidden"}]])
 
-(defn- transactions [{:keys [editor tx-refs]}]
+(defn- statements [{:keys [editor tx-refs]} tx-type]
   (reset! tx-refs [])
   (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])]
     [:<>
-     [captions-row "Transactions:"]
+     [captions-row "Statements:"]
      [:<>
       (doall
        (map-indexed
-        (fn [idx [id {:keys [system-time txs]}]]
+        (fn [idx [id {:keys [txs system-time]}]]
           (let [ref (atom {:id id :ref nil})]
             (swap! tx-refs conj ref)
             ^{:key id}
@@ -277,46 +257,29 @@
                [:div {:class "grow min-h-0 overflow-y-auto flex flex-col gap-2"}
                 [:div {:class "flex flex-col flex-1 md:max-w-[48vw] lg:max-w-[49vw]"}
                  (when (< 1 (count tx-batches))
-                   [system-time-input id system-time])
+                   [rm-stmt-header id system-time])
                  [editor (merge
                           (editor-update-opts id txs ref)
                           {:class "md:flex-grow min-h-36 border"})]]]]
 
               [results idx]]]))
         tx-batches))]
-     [add-tx-button]]))
-
-(defn- query [{:keys [editor query-ref]}]
-  [:<>
-   [captions-row "Query:"]
-   [:div {:class "flex flex-row"}
-    [:div {:class (str "mx-4 md:mx-0 md:pr-4 md:flex-1 flex flex-col "
-                      ;; stop editor expanding beyond the viewport
-                       "md:max-w-[48vw] lg:max-w-[49vw]")}
-     [:div {:class "grow min-h-0 overflow-y-auto flex flex-col gap-2"}
-      [editor (merge
-               (editor-update-opts :query @(rf/subscribe [:query]) query-ref)
-               {:class "md:flex-grow h-full min-h-36 border"})]]]
-
-    [results :last]]])
+     (when (#{:sql-v2 :xtql} tx-type)
+       [add-statement-button])]))
 
 (def ^:private mobile-gap [:hr {:class "md:hidden"}])
 
 (defn app []
   (let [tx-type (rf/subscribe [:get-type])
-        query-ref (atom {:id :query :ref nil})
         tx-refs (atom [])]
     (fn []
       [:div {:class "flex flex-col h-dvh"}
-       [header @tx-type query-ref tx-refs]
+       [header @tx-type tx-refs]
        ;; overflow-hidden fixes a bug where if an editor would have content that
        ;; goes off the screen the whole page would scroll.
-       [:div {:class "py-2 px-4 flex-grow md:overflow-hidden h-full flex flex-row md:flex-row gap-2 "}
+       [:div {:class "py-2 px-4 flex-grow  h-full flex flex-row md:flex-row gap-2 "}
         (let [ctx {:editor (editor/default-editor @tx-type)
-                   :query-ref query-ref
                    :tx-refs tx-refs}]
           [:div {:class "flex flex-col gap-2 w-full"}
-           [transactions ctx]
-           mobile-gap
-           [query ctx]
+           [statements ctx @tx-type]
            mobile-gap])]])))

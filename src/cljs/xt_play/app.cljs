@@ -7,7 +7,6 @@
             [reagent.core :as r]
             [goog.dom :as gdom]
             [xt-play.components.highlight :as hl]
-            [xt-play.model.query :as query]
             [xt-play.model.query-params :as query-params]
             [xt-play.model.tx-batch :as tx-batch]
             [xt-play.view :as view]))
@@ -25,12 +24,13 @@
                 js/JSON.parse
                 (js->clj :keywordize-keys true))]
     (->> txs
-         (map #(update % :system-time (fn [d] (when d (js/Date. d))))))))
+         (mapv #(update % :system-time (fn [d] (when d (js/Date. d))))))))
 
 (rf/reg-event-fx
  ::init
  [(rf/inject-cofx ::query-params/get)]
  (fn [{:keys [query-params]} [_ xt-version]]
+   ;; keep query here - this is so that any old URLs/doc links keep working - just put query w/txs (statements)
    (let [{:keys [type txs query enc]} query-params
          ;; in case of saved link with sql-beta - translate to sql-v2
          type (keyword
@@ -40,14 +40,16 @@
                  type))]
      {:db {:version xt-version
            :type type
-           :enc enc
-           :query (if query
-                    (query-params/decode-from-binary query enc)
-                    (query/default type))}
+           :enc enc}
       :dispatch [::tx-batch/init
-                 (if txs
-                   (param-decode txs enc)
-                   [(tx-batch/default type)])]})))
+                 (conj
+                  (if txs
+                    (param-decode txs enc)
+                    [(tx-batch/default type)])
+                  (if query
+                    {:txs (query-params/decode-from-binary query enc)
+                     :query "true"}
+                    (tx-batch/default-query type)))]})))
 
 (defonce root (createRoot (gdom/getElement "app")))
 
