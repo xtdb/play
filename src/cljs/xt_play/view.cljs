@@ -181,27 +181,27 @@
       (when (or @loading?
                 @show-results?)
         ^{:key position}
-        [:div {:class (str "md:mx-0 md:flex-1 flex flex-col flex-1"
-                           "md:max-w-[48vw] lg:max-w-[49vw]")}
-         [:div {:class "grow min-h-0 border overflow-auto"}
-          (if @loading?
-            [spinner]
-            (let [{::run/keys [results failure response?]} @results-or-failure]
-              (if failure
-                [display-error failure position]
-                (let [the-result (get results position)]
-                  (if (tx-result? the-result)
-                    [:div.px-1 {:class (when (> (count results) 1) "pt-6")}
-                     (map-indexed display-tx-result the-result)]
-                    (cond
-                      (not response?) [spacer-header (count results)
-                                       initial-message]
-                      (empty? results) [spacer-header (count results)
-                                        no-results-message]
-                      (every? empty? the-result) [spacer-header (count results)
-                                                  (empty-rows-message the-result)]
-                      :else
-                      [display-table the-result tx-type position]))))))]]))))
+        [:div {:class (str "md:mx-0 md:flex-1 flex flex-col flex-1 "
+                           "md:max-w-[48vw] lg:max-w-[49vw] "
+                           "grow min-h-0 border overflow-auto")}
+         (if @loading?
+           [spinner]
+           (let [{::run/keys [results failure response?]} @results-or-failure]
+             (if failure
+               [display-error failure position]
+               (let [the-result (get results position)]
+                 (if (tx-result? the-result)
+                   [:div.px-1 {:class (when (> (count results) 1) "pt-6")}
+                    (map-indexed display-tx-result the-result)]
+                   (cond
+                     (not response?) [spacer-header (count results)
+                                      initial-message]
+                     (empty? results) [spacer-header (count results)
+                                       no-results-message]
+                     (every? empty? the-result) [spacer-header (count results)
+                                                 (empty-rows-message the-result)]
+                     :else
+                     [display-table the-result tx-type position]))))))]))))
 
 (defn- captions-row [text]
   (let [show-results? (rf/subscribe [::run/show-results?])]
@@ -255,14 +255,13 @@
              [:div {:class "flex flex-row"}
               [:div {:class (str "mx-4 md:mx-0 md:pr-4 md:flex-1 flex flex-col "
                                  ;; stop editor expanding beyond the viewport
-                                 "md:max-w-[48vw] lg:max-w-[49vw]")}
-               [:div {:class "grow min-h-0 overflow-y-auto flex flex-col gap-2"}
-                [:div {:class "flex flex-col flex-1 md:max-w-[48vw] lg:max-w-[49vw]"}
-                 (when (< 1 (count tx-batches))
-                   [rm-stmt-header id system-time])
-                 [editor (merge
-                          (editor-update-opts id txs ref)
-                          {:class "md:flex-grow min-h-36 border"})]]]]
+                                 "md:max-w-[48vw] lg:max-w-[49vw] "
+                                 "grow min-h-0 overflow-y-auto ")}
+               (when (< 1 (count tx-batches))
+                 [rm-stmt-header id system-time])
+               [editor (merge
+                        (editor-update-opts id txs ref)
+                        {:class "md:flex-grow min-h-36 border"})]]
 
               [results idx]]]))
         tx-batches))]
