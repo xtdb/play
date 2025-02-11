@@ -37,19 +37,20 @@
                (if (or (empty? type)
                        (= "sql-beta" type))
                  "sql-v2"
-                 type))]
+                 type))
+         txs (if txs
+               (param-decode txs enc)
+               [(tx-batch/default type)
+                (tx-batch/default-query type)])
+         statements (if query
+                      (conj txs [{:txs (query-params/decode-from-binary query enc)
+                                  :query "true"}])
+                      txs)]
      {:db {:version xt-version
            :type type
            :enc enc}
       :dispatch [::tx-batch/init
-                 (conj
-                  (if txs
-                    (param-decode txs enc)
-                    [(tx-batch/default type)])
-                  (if query
-                    {:txs (query-params/decode-from-binary query enc)
-                     :query "true"}
-                    (tx-batch/default-query type)))]})))
+                 statements]})))
 
 (defonce root (createRoot (gdom/getElement "app")))
 
