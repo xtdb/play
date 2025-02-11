@@ -117,11 +117,6 @@
                            " hover:bg-gray-300 cursor-pointer"))
              :disabled @copy-tick
              :on-click (fn [_]
-                         ;; for more fluid typing, we only update url on
-                         ;; blur. This means that sometimes the url hasn't got
-                         ;; the latest updates from the app-db. Ensure that's
-                         ;; not the case by updating before copying
-
                          ;; given that it's no longer controlled component - need to get values
                          ;; of the editor from the refs
                          (update-db-from-editor-refs tx-refs)
@@ -166,12 +161,16 @@
   (let [[[msg-k msg] [_exc exc] [_dta data]] row]
     (case msg-k
       "message" [display-error {:message msg :exception exc :data data} idx]
-      "next.jdbc/update-count" [:p.my-2.mx-2 "Transaction succeeded."]
+      "next.jdbc/update-count" [:p.mb-2.mx-2 "Transaction succeeded."]
       :else nil)))
 
 (defn- tx-result? [row]
   (let [[[[msg-k _msg] _]] row]
     (#{"next.jdbc/update-count" "message"} msg-k)))
+
+(defn- spacer-header [cnt children]
+  [:div.px-1 {:class (when (> cnt 1) "pt-8")}
+   children])
 
 (defn- results [position]
   (let [tx-type (rf/subscribe [:get-type])
@@ -195,9 +194,12 @@
                     [:div.px-1 {:class (when (> (count results) 1) "pt-6")}
                      (map-indexed display-tx-result the-result)]
                     (cond
-                      (not response?) initial-message
-                      (empty? results) no-results-message
-                      (every? empty? the-result) (empty-rows-message the-result)
+                      (not response?) [spacer-header (count results)
+                                       initial-message]
+                      (empty? results) [spacer-header (count results)
+                                        no-results-message]
+                      (every? empty? the-result) [spacer-header (count results)
+                                                  (empty-rows-message the-result)]
                       :else
                       [display-table the-result tx-type position]))))))]]))))
 
