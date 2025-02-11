@@ -117,7 +117,7 @@
   [{:keys [tx-batches tx-type]}]
   (xtdb/with-xtdb
     (fn [node]
-      (if (= "sql-v2" tx-type)
+      (if (#{"sql-v2" "sql"} tx-type)
         (run!-with-jdbc-conn tx-batches)
         (let [res (run!-tx node tx-type tx-batches)]
           (log/warn "run!!" res)
