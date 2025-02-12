@@ -162,9 +162,10 @@
   (let [[[msg-k msg] & more] row]
     (case msg-k
       "message" (let [[[_exc exc] [_data data]] more]
-                    [display-error {:message msg :exception exc :data data} idx])
+                  ^{:key idx} [display-error {:message msg :exception
+                                              exc :data data} idx])
       "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Transaction succeeded."]
-      :else nil)))
+      nil)))
 
 (defn- tx-result? [row]
   (let [[[[msg-k _msg] _]] row]
