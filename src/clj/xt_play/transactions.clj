@@ -76,8 +76,9 @@
                 (fn [{:keys [system-time query txs] :as batch}]
                   (log/info tx-type "running batch: " batch)
                   (try
-                    (xtdb/submit! node txs {:system-time system-time
-                                            :query query})
+                    (if query
+                      (xtdb/query node txs)
+                      (xtdb/submit! node txs {:system-time system-time}))
                     (catch Throwable ex
                       (log/error "Exception while running transaction" (ex-message ex))
                       (parse-result
