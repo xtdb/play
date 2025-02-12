@@ -43,8 +43,8 @@
                [(tx-batch/default type)
                 (tx-batch/default-query type)])
          statements (if query
-                      (conj txs [{:txs (query-params/decode-from-binary query enc)
-                                  :query "true"}])
+                      (conj txs {:txs (query-params/decode-from-binary query enc)
+                                 :query "true"})
                       txs)]
      {:db {:version xt-version
            :type type

@@ -251,7 +251,7 @@
 
 (defn- statements [{:keys [editor tx-refs]} tx-type]
   (reset! tx-refs [])
-  (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])]
+  (let [statements @(rf/subscribe [::tx-batch/id-batch-pairs])]
     [:<>
      [captions-row "Statements:"]
      [:<>
@@ -265,14 +265,14 @@
              [:div {:class "flex flex-row"}
               [:div {:class (str half-window-col-class
                                  "mx-4 md:pr-4 grow min-h-0 overflow-y-auto ")}
-               (when (< 1 (count tx-batches))
+               (when (< 1 (count statements))
                  [rm-stmt-header id system-time])
                [editor (merge
                         (editor-update-opts id txs ref)
                         {:class "md:flex-grow min-h-36 border"})]]
 
               [results idx]]]))
-        tx-batches))]
+        statements))]
      (when (#{:sql-v2 :xtql} tx-type)
        [add-statement-button])]))
 
