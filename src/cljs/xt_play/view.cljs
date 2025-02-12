@@ -158,14 +158,14 @@
 (def ^:private no-results-message "No results returned")
 (defn- empty-rows-message [results] (str (count results) " empty row(s) returned"))
 
-(defn- display-tx-result [idx row]
+(defn- display-tx-result [tx-type idx row]
   (let [[[msg-k msg] & more] row]
     (case msg-k
       "message" (let [[[_exc exc] [_data data]] more]
                   ^{:key idx} [display-error {:message msg :exception
                                               exc :data data} idx])
       "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Transaction succeeded."]
-      nil)))
+      ^{:key idx}[display-table row tx-type idx])))
 
 (defn- tx-result? [row]
   (let [[[[msg-k _msg] _]] row]
@@ -181,10 +181,10 @@
 
 (defn- tx-results
   "If there is a system-time - there was a transaction, so discard those results."
-  [{:keys [system-time]} the-result]
+  [{:keys [system-time]} the-result tx-type]
   (if system-time
-    (map-indexed display-tx-result (drop 1 (drop-last the-result)))
-    (map-indexed display-tx-result the-result)))
+    (map-indexed (partial display-tx-result tx-type) (drop 1 (drop-last the-result)))
+    (map-indexed (partial display-tx-result tx-type) the-result)))
 
 (defn- results [position]
   (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])
@@ -207,7 +207,7 @@
                (let [the-result (get results position)]
                  (if (tx-result? the-result)
                    [spacer-header (count results)
-                    (tx-results statements the-result)]
+                    (tx-results statements the-result tx-type)]
                    (cond
                      (not response?) [spacer-header (count results)
                                       initial-message]
@@ -216,7 +216,7 @@
                      (every? empty? the-result) [spacer-header (count results)
                                                  (empty-rows-message the-result)]
                      :else
-                     [display-table the-result tx-type position]))))))]))))
+                     [display-table (first the-result) tx-type position]))))))]))))
 
 (defn- captions-row [text]
   (let [show-results? (rf/subscribe [::run/show-results?])]

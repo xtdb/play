@@ -99,7 +99,10 @@
                           (fn [statement]
                             (log/info "beta executing statement:" statement)
                             (try
-                              (parse-result (xtdb/jdbc-execute! conn statement))
+                              (let [res (parse-result (xtdb/jdbc-execute! conn statement))]
+                                (if-not (vector? (ffirst res))
+                                  [res]
+                                  res))
                               (catch Exception ex
                                 (log/error "Exception while running statement" (ex-message ex))
                                 (parse-result
