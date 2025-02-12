@@ -41,6 +41,7 @@
    :on-blur #(do
                (rf/dispatch [::tx-batch/assoc id :txs (get-value ref)])
                (rf/dispatch [:update-url]))})
+
 (defn- display-error [{:keys [exception message data]} position]
   ^{:key position}
   [:div {:class "flex flex-col gap-2"}
@@ -158,10 +159,11 @@
 (defn- empty-rows-message [results] (str (count results) " empty row(s) returned"))
 
 (defn- display-tx-result [idx row]
-  (let [[[msg-k msg] [_exc exc] [_dta data]] row]
+  (let [[[msg-k msg] & more] row]
     (case msg-k
-      "message" [display-error {:message msg :exception exc :data data} idx]
-      "next.jdbc/update-count" [:p.mb-2.mx-2 "Transaction succeeded."]
+      "message" (let [[[_exc exc] [_data data]] more]
+                    [display-error {:message msg :exception exc :data data} idx])
+      "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Transaction succeeded."]
       :else nil)))
 
 (defn- tx-result? [row]
@@ -172,8 +174,21 @@
   [:div.px-1 {:class (when (> cnt 1) "pt-8")}
    children])
 
+(def half-window-col-class (str "md:mx-0 flex-1 flex flex-col "
+                                ;; stop editor expanding beyond the viewport
+                                "md:max-w-[48vw] lg:max-w-[49vw] "))
+
+(defn- tx-results
+  "If there is a system-time - there was a transaction, so discard those results."
+  [{:keys [system-time]} the-result]
+  (if system-time
+    (map-indexed display-tx-result (drop 1 (drop-last the-result)))
+    (map-indexed display-tx-result the-result)))
+
 (defn- results [position]
-  (let [tx-type (rf/subscribe [:get-type])
+  (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])
+        statements (second (get tx-batches position))
+        tx-type (rf/subscribe [:get-type])
         loading? (rf/subscribe [::run/loading?])
         show-results? (rf/subscribe [::run/show-results?])
         results-or-failure (rf/subscribe [::run/results-or-failure])]
@@ -181,8 +196,7 @@
       (when (or @loading?
                 @show-results?)
         ^{:key position}
-        [:div {:class (str "md:mx-0 md:flex-1 flex flex-col flex-1 "
-                           "md:max-w-[48vw] lg:max-w-[49vw] "
+        [:div {:class (str half-window-col-class
                            "grow min-h-0 border overflow-auto")}
          (if @loading?
            [spinner]
@@ -191,8 +205,8 @@
                [display-error failure position]
                (let [the-result (get results position)]
                  (if (tx-result? the-result)
-                   [:div.px-1 {:class (when (> (count results) 1) "pt-6")}
-                    (map-indexed display-tx-result the-result)]
+                   [spacer-header (count results)
+                    (tx-results statements the-result)]
                    (cond
                      (not response?) [spacer-header (count results)
                                       initial-message]
@@ -206,13 +220,9 @@
 (defn- captions-row [text]
   (let [show-results? (rf/subscribe [::run/show-results?])]
     [:div {:class "flex flex-row"}
-     [:div {:class (str "mx-4 md:mx-0 md:mr-4 flex-1 flex flex-col "
-                        ;; stop editor expanding beyond the viewport
-                        "md:max-w-[48vw] lg:max-w-[49vw]")}
+     [:div {:class (str "mx-4 md:mr-4 " half-window-col-class)}
       [:h2 text]]
-     [:div {:class (str "mx-4 md:mx-0 flex-1 flex flex-col "
-                        ;; stop editor expanding beyond the viewport
-                        "md:max-w-[48vw] lg:max-w-[49vw]")}
+     [:div {:class (str "mx-4 md:mx-0 " half-window-col-class)}
       [:div {:class "flex ml-4 flex-row items-center justify-between"}
        [:h2 "Results:"]
        [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
@@ -253,10 +263,8 @@
             ^{:key id}
             [:<>
              [:div {:class "flex flex-row"}
-              [:div {:class (str "mx-4 md:mx-0 md:pr-4 md:flex-1 flex flex-col "
-                                 ;; stop editor expanding beyond the viewport
-                                 "md:max-w-[48vw] lg:max-w-[49vw] "
-                                 "grow min-h-0 overflow-y-auto ")}
+              [:div {:class (str half-window-col-class
+                                 "mx-4 md:pr-4 grow min-h-0 overflow-y-auto ")}
                (when (< 1 (count tx-batches))
                  [rm-stmt-header id system-time])
                [editor (merge
