@@ -29,6 +29,25 @@
           (str/includes? upper-st "MERGE")
           (str/includes? upper-st "PATCH")))))
 
+(defn split-sql [sql]
+  (loop [chars (seq sql) current [] statements [] in-string? false escape? false]
+    (if (empty? chars)
+      (conj statements (apply str current))
+      (let [c (first chars)
+            rest-chars (rest chars)]
+        (cond
+          (and (= c \') (not escape?))
+          (recur rest-chars (conj current c) statements (not in-string?) false)
+
+          (and in-string? (= c \\))
+          (recur rest-chars (conj current c) statements in-string? (not escape?))
+
+          (and (= c \;) (not in-string?))
+          (recur rest-chars [] (conj statements (apply str current)) in-string? false)
+
+          :else
+          (recur rest-chars (conj current c) statements in-string? false))))))
+
 (defn- prepare-statements
   "Takes a batch of transactions and prepares the jdbc execution args to
   be run sequentially. It groups statements by type and wraps DMLs in transactions if system time specified."
@@ -36,7 +55,7 @@
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
             (when txs
-              (let [statements (str/split txs #"\s*;+\s*")
+              (let [statements (split-sql txs)
                     by-type (partition-by dml? statements)]
                 (log/warn "by-type" by-type)
                 (mapcat

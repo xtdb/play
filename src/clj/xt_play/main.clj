@@ -13,3 +13,6 @@
 (defn -main [& _args]
   (ig/init system)
   @(delay))
+
+(comment
+  (-main))
