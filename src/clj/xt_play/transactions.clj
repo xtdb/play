@@ -151,7 +151,7 @@
         (run!-with-jdbc-conn tx-batches)
         (let [res (run!-tx node tx-type tx-batches)]
           (log/warn "run!!" res)
-          (mapv util/map-results->rows res))))))
+          (mapv (comp vector util/map-results->rows) res))))))
 
 (defn docs-run!!
   "Given transaction batches and a query from the docs, will return the query
