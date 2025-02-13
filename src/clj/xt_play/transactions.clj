@@ -48,9 +48,9 @@
           :else
           (recur rest-chars (conj current c) statements in-string? false))))))
 
-(defn- prepare-statements
-  "Takes a batch of transactions and prepares the jdbc execution args to
-  be run sequentially. It groups statements by type and wraps DMLs in transactions if system time specified."
+(defn- transform-statements
+  "Takes a batch of transactions and outputs the jdbc execution args to
+  be run sequentially. It groups statements by type and wraps DMLs in explicit transactions if system time specified."
   [tx-batches]
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
@@ -155,7 +155,7 @@
                                    :exception (.getClass ex)
                                    :data (ex-data ex)}]))))
                           txs)))
-                      (prepare-statements tx-batches))]
+                      (transform-statements tx-batches))]
         (log/info "run!-with-jdbc-conn-res" res)
         res))))
 
