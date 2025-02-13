@@ -38,11 +38,11 @@
 
 (s/def ::system-time (s/nilable string?))
 (s/def ::txs string?)
-(s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs])))
-(s/def ::query string?)
+(s/def ::query (s/nilable string?))
+(s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs] :opt-un [::query])))
 (s/def ::tx-type #{"sql-v2" "xtql" "sql"})
 (s/def ::db-run (s/keys :req-un [::tx-batches ::query]))
-(s/def ::beta-db-run (s/keys :req-un [::tx-batches ::query ::tx-type]))
+(s/def ::beta-db-run (s/keys :req-un [::tx-batches ::tx-type]))
 
 (defn- handle-client-error [ex _]
   {:status 400
@@ -97,7 +97,7 @@
              :handler #'docs-run-handler}}]
 
     ["/beta-db-run"
-     {:post {:summary "Run transactions + a query"
+     {:post {:summary "Run statements"
              :parameters {:body ::beta-db-run}
              :handler #'run-handler}}]
 

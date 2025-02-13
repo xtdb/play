@@ -3,7 +3,7 @@
             [xt-play.config :as config]
             [xt-play.model.clipboard :as clipboard]
             [xt-play.model.href :as href]
-            [xt-play.model.query :as query]
+            [xt-play.model.run :as run]
             [xt-play.model.query-params :as query-params]
             [xt-play.model.tx-batch :as tx-batch]))
 
@@ -33,22 +33,19 @@
    {::query-params/set {:version (:version db)
                         :type (name (:type db))
                         :enc 2
-                        :txs (param-encode (tx-batch/batch-list db))
-                        :query (query-params/encode-to-binary (:query db))}}))
+                        :txs (param-encode (tx-batch/batch-list db))}}))
 
 (rf/reg-event-fx
   :dropdown-selection
   (fn [{:keys [db]} [_ new-type]]
     {:db (-> db
-             (assoc :type new-type)
-             (assoc :query (query/default new-type)))
-     :fx [[:dispatch [::tx-batch/init [(tx-batch/default new-type)]]]
+             (assoc :type new-type))
+     :fx [[:dispatch [::tx-batch/init [(tx-batch/default new-type)
+                                       (tx-batch/default-query new-type)]]]
+          [:dispatch [::run/reset-results]]
+          [:dispatch [:update-url]]
+          [:dispatch [::run/reset-results]]
           [:dispatch [:update-url]]]}))
-
-(rf/reg-event-db
-  :set-query
-  (fn [db [_ query]]
-    (assoc db :query query)))
 
 (rf/reg-event-fx
   :fx ;; todo, use explicit reg-event-fxs
@@ -58,10 +55,6 @@
 (rf/reg-sub
   :get-type
   :-> :type)
-
-(rf/reg-sub
-  :query
-  :-> :query)
 
 (rf/reg-sub
   :version

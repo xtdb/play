@@ -6,31 +6,72 @@
             [xt-play.util :as util]
             [xt-play.xtdb :as xtdb]))
 
-(defn- encode-txs [tx-type txs]
+(defn- encode-txs [tx-type query? txs]
   (case (keyword tx-type)
-    :sql (if (string? txs)
+    :sql (if (and (not query?)
+                  (string? txs))
            (->> (str/split txs #";")
                 (remove str/blank?)
                 (map #(do [:sql %]))
                 (vec))
            txs)
-    :xtql (util/read-edn (str "[" txs "]"))
+    :xtql (util/read-edn (if query? txs (str "[" txs "]")))
     ;;else
     txs))
 
+(defn- dml? [statement]
+  (when statement
+    (let [upper-st (str/upper-case statement)]
+      (or (str/includes? upper-st "INSERT")
+          (str/includes? upper-st "UPDATE")
+          (str/includes? upper-st "DELETE")
+          (str/includes? upper-st "ERASE")
+          (str/includes? upper-st "MERGE")
+          (str/includes? upper-st "PATCH")))))
+
+(defn split-sql [sql]
+  (loop [chars (seq sql) current [] statements [] in-string? false escape? false]
+    (if (empty? chars)
+      (conj statements (apply str current))
+      (let [c (first chars)
+            rest-chars (rest chars)]
+        (cond
+          (and (= c \') (not escape?))
+          (recur rest-chars (conj current c) statements (not in-string?) false)
+
+          (and in-string? (= c \\))
+          (recur rest-chars (conj current c) statements in-string? (not escape?))
+
+          (and (= c \;) (not in-string?))
+          (recur rest-chars [] (conj statements (apply str current)) in-string? false)
+
+          :else
+          (recur rest-chars (conj current c) statements in-string? false))))))
+
 (defn- prepare-statements
   "Takes a batch of transactions and prepares the jdbc execution args to
-  be run sequentially"
+  be run sequentially. It groups statements by type and wraps DMLs in transactions if system time specified."
   [tx-batches]
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
-            (concat
-             (when system-time
-               [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
-             (mapv (fn [q] (vector (str q ";")))
-                   (str/split txs #"\s*;\s*"))
-             (when system-time
-               [["COMMIT"]])))))
+            (when txs
+              (let [statements (split-sql txs)
+                    by-type (partition-by dml? statements)]
+                (log/warn "by-type" by-type)
+                (mapcat
+                 (fn [grp]
+                   (let [dmls? (dml? (first grp))]
+                     (concat
+                      (when (and dmls? system-time)
+                        [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
+                      (vec
+                       (keep (fn [q] (when-not (empty? q)
+                                       [(str/trim q)]))
+                             grp))
+                      (when (and dmls? system-time)
+                        [["COMMIT"]]))))
+                 by-type)
+                )))))
 
 (defn format-system-time [s]
   (when s (read-instant-date s)))
@@ -54,42 +95,82 @@
      (mapv PG->clj row))
    result))
 
-(defn- run!-tx [node tx-type tx-batches query]
-  (let [tx-batches (->> tx-batches
-                        (map #(update % :system-time format-system-time))
-                        (map #(update % :txs (partial encode-txs tx-type))))]
-    (doseq [{:keys [system-time txs] :as batch} tx-batches]
-      (log/info tx-type "running batch: " batch)
-      (xtdb/submit! node txs {:system-time system-time})))
-  (log/info tx-type "running query:" query)
-  (let [res (xtdb/query node query)]
-    (log/info tx-type "XTDB query response:" res)
-    res))
+(defn- detect-xtql-queries [batch]
+  (if (:query batch)
+    batch
+    (if (and (string? (:txs batch))
+             (re-matches #"(?i)^\s*(\(->)?\s*\((from|unify|rel).+" (:txs batch)))
+      (assoc batch :query true)
+      batch)))
 
-(defn- run!-with-jdbc-conn [tx-batches query]
+(defn- run!-tx [node tx-type tx-batches]
+  (let [tx-batches (->> tx-batches
+                        (map detect-xtql-queries)
+                        (map #(update % :system-time format-system-time))
+                        (map #(update % :txs (partial encode-txs tx-type (:query %)))))
+        tx-results
+        (doall (mapv
+                (fn [{:keys [system-time query txs] :as batch}]
+                  (log/info tx-type "running batch: " batch)
+                  (try
+                    (if query
+                      (xtdb/query node txs)
+                      (xtdb/submit! node txs {:system-time system-time}))
+                    (catch Throwable ex
+                      (log/error "Exception while running transaction" (ex-message ex))
+                      (parse-result
+                       [{:message (ex-message ex)
+                         :exception (.getClass ex)
+                         :data (ex-data ex)}]))))
+                tx-batches))]
+    (log/warn "run!-tx-res" tx-results)
+    tx-results))
+
+
+(defn- run!-with-jdbc-conn [tx-batches]
   (xtdb/with-jdbc
     (fn [conn]
-      (doseq [txs (prepare-statements tx-batches)
-              statement txs]
-        (log/info "beta executing statement:" statement)
-        (xtdb/jdbc-execute! conn statement))
-      (log/info "beta running query:" query)
-      (let [res (xtdb/jdbc-execute! conn [query])]
-        (log/info "beta query response" res)
-        (parse-result res)))))
+      (let [tx-in-progress? (atom false)
+            res (mapv (fn [txs]
+                        (vec
+                         (mapcat
+                          (fn [statement]
+                            (log/info "beta executing statement:" statement)
+                            (when (str/includes? (str/upper-case (first statement)) "BEGIN")
+                              (reset! tx-in-progress? true))
+                            (try
+                              (let [res (parse-result (xtdb/jdbc-execute! conn statement))]
+                                (when (str/includes? (str/upper-case (first statement)) "COMMIT")
+                                  (reset! tx-in-progress? false))
+                                (if-not (vector? (ffirst res))
+                                  [res]
+                                  res))
+                              (catch Exception ex
+                                (log/error "Exception while running statement" (ex-message ex))
+                                (when @tx-in-progress?
+                                  (log/warn "Rolling back transaction")
+                                  (xtdb/jdbc-execute! conn ["ROLLBACK"]))
+                                (parse-result
+                                 [{:message (ex-message ex)
+                                   :exception (.getClass ex)
+                                   :data (ex-data ex)}]))))
+                          txs)))
+                      (prepare-statements tx-batches))]
+        (log/info "run!-with-jdbc-conn-res" res)
+        res))))
 
 (defn run!!
   "Given transaction batches, a query and the type of transaction to
   use, will run transaction batches and queries sequentially,
   returning the last query response in column format."
-  [{:keys [tx-batches query tx-type]}]
-  (let [query (if (= "xtql" tx-type) (util/read-edn query) query)]
-    (xtdb/with-xtdb
-      (fn [node]
-        (if (= "sql-v2" tx-type)
-          (run!-with-jdbc-conn tx-batches query)
-          (let [res (run!-tx node tx-type tx-batches query)]
-            (util/map-results->rows res)))))))
+  [{:keys [tx-batches tx-type]}]
+  (xtdb/with-xtdb
+    (fn [node]
+      (if (#{"sql-v2" "sql"} tx-type)
+        (run!-with-jdbc-conn tx-batches)
+        (let [res (run!-tx node tx-type tx-batches)]
+          (log/warn "run!!" res)
+          (mapv (comp vector util/map-results->rows) res))))))
 
 (defn docs-run!!
   "Given transaction batches and a query from the docs, will return the query
@@ -98,5 +179,6 @@
   (xtdb/with-xtdb
     (fn [node]
       (run!-tx node "sql"
-               (mapv #(update % :txs util/read-edn) tx-batches)
-               (util/read-edn query)))))
+               (vec
+                (conj (mapv #(update % :txs util/read-edn) tx-batches)
+                      {:txs (util/read-edn query) :query true}))))))

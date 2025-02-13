@@ -23,5 +23,5 @@
   {:txs
    "INSERT INTO people (_id, name, favorite_color, _valid_from)\nVALUES (2, 'carol', 'red', DATE '2023-09-01')",
    :system-time "2024-01-08T00:00:00.000Z"}],
- :query
+ #_#_:query
  "SETTING DEFAULT VALID_TIME AS OF DATE '2023-10-01',\n      DEFAULT SYSTEM_TIME AS OF DATE '2024-01-08'\nSELECT name, favorite_color , _valid_from, _system_from FROM people"}}}

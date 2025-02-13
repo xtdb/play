@@ -80,3 +80,7 @@
 (defn default [tx-type]
   {:system-time nil
    :txs (config/default-transaction tx-type)})
+
+(defn default-query [tx-type]
+  {:query "true"
+   :txs (config/default-query tx-type)})

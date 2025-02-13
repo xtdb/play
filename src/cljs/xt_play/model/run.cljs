@@ -3,10 +3,8 @@
             [re-frame.core :as rf]
             [xt-play.model.tx-batch :as tx-batch]))
 
-(defn- db-run-opts [{:keys [query type] :as db}]
-  (js/console.log "db-run-opts" db)
+(defn- db-run-opts [{:keys [type] :as db}]
   (let [params {:tx-type type
-                :query query
                 :tx-batches (map #(update % :system-time (fn [d] (when d (.toISOString d))))
                                  (tx-batch/batch-list db))}]
     {:method :post
@@ -47,6 +45,11 @@
         (dissoc ::loading?)
         (assoc ::failure response
                ::show-results? true))))
+
+(rf/reg-event-db
+ ::reset-results
+ (fn [db _]
+   (dissoc db ::results ::failure ::response?)))
 
 (rf/reg-event-db
  ::hide-results!

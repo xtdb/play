@@ -7,26 +7,24 @@
             [xtdb.node :as xtn]))
 
 (defn with-xtdb [f]
-  (try
-    (with-open [node (xtn/start-node config/node-config)]
-      (f node))
-    (catch Exception e
-      (log/warn :submit-error {:e e})
-      (throw e))))
+  (with-open [node (xtn/start-node config/node-config)]
+    (f node)))
+
+(defn query [node q]
+  (log/info :query q)
+  (xt/q node q (when (string? q) {:key-fn :snake-case-string})))
 
 (defn submit! [node txs opts]
   (log/info :submit-tx txs opts)
   (let [tx (xt/submit-tx node txs opts)
         results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
                       {:args {:tx-id (:tx-id tx)}})]
-    (log/info :submit-tx results)
-    ;; If any transaction fails, throw the error
-    (when-let [error (-> results first :xt/error)]
-      (throw error))))
-
-(defn query [node q]
-  (log/info :query q)
-  (xt/q node q (when (string? q) {:key-fn :snake-case-string})))
+    (log/info :submit-tx-result results)
+    (if-let [error (-> results first :xt/error)]
+      {:message (ex-message error)
+       :exception (.getClass error)
+       :data (ex-data error)}
+      results)))
 
 (defn with-jdbc [f]
   (with-open [conn (jdbc/get-connection config/db)]
