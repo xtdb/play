@@ -164,7 +164,7 @@
       "message" (let [[[_exc exc] [_data data]] more]
                   ^{:key idx} [display-error {:message msg :exception
                                               exc :data data} idx])
-      "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Transaction succeeded."]
+      "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Statement succeeded."]
       ^{:key idx}[display-table row tx-type idx])))
 
 (defn- tx-result-or-error? [row]

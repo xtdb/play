@@ -36,7 +36,7 @@
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
             (when txs
-              (let [statements (str/split txs #"\s*;\s*")
+              (let [statements (str/split txs #"\s*;+\s*")
                     by-type (partition-by dml? statements)]
                 (log/warn "by-type" by-type)
                 (mapcat
