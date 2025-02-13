@@ -2,7 +2,7 @@
   (:require ["@heroicons/react/24/outline"
              :refer [BookmarkIcon CheckCircleIcon]]
             ["@heroicons/react/24/solid"
-             :refer [PlayIcon XMarkIcon CheckIcon]]
+             :refer [PlayIcon XMarkIcon]]
             ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
@@ -103,12 +103,9 @@
       [:div {:class "flex flex-row gap-1 items-center"}
        "Run"
        [:> PlayIcon {:class "h-5 w-5"}]]]
-     [:> CheckIcon
-      {:class "h-5 w-5"
-       :visibility (if (and (not @loading?)
-                            @show-results?)
-                     "visible"
-                     "hidden")}]]))
+     [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
+                    :visibility (if (and (not @loading?) @show-results?) "visible" "hidden")
+                    :on-click #(rf/dispatch [::run/hide-results!])}]]))
 
 (defn- copy-button [tx-refs]
   (let [copy-tick (rf/subscribe [:copy-tick])]
@@ -239,18 +236,6 @@
                                     [display-table sub-result tx-type position])
                                   the-result)))))))]))))
 
-(defn- captions-row [text]
-  (let [show-results? (rf/subscribe [::run/show-results?])]
-    [:div {:class "flex flex-row"}
-     [:div {:class (str "mx-4 md:mr-4 " half-window-col-class)}
-      [:h2 text]]
-     [:div {:class (str "mx-4 md:mx-0 " half-window-col-class)}
-      [:div {:class "flex ml-4 flex-row items-center justify-between"}
-       [:h2 "Results:"]
-       [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
-                      :visibility (if @show-results? "visible" "hidden")
-                      :on-click #(rf/dispatch [::run/hide-results!])}]]]]))
-
 (defn- rm-stmt-header [id system-time]
   [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
    [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
@@ -275,7 +260,6 @@
   (reset! tx-refs [])
   (let [statements @(rf/subscribe [::tx-batch/id-batch-pairs])]
     [:<>
-     [captions-row "Statements:"]
      [:<>
       (doall
        (map-indexed
@@ -284,7 +268,7 @@
             (swap! tx-refs conj ref)
             ^{:key id}
             [:<>
-             [:div {:class "flex flex-row"}
+             [:div {:class "flex flex-col md:flex-row"}
               [:div {:class (str half-window-col-class
                                  "mx-4 md:pr-4 grow min-h-0 overflow-y-auto ")}
                (when (< 1 (count statements))
