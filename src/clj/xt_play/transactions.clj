@@ -19,22 +19,40 @@
     ;;else
     txs))
 
+(defn- dml? [statement]
+  (when statement
+    (let [upper-st (str/upper-case statement)]
+      (or (str/includes? upper-st "INSERT")
+          (str/includes? upper-st "UPDATE")
+          (str/includes? upper-st "DELETE")
+          (str/includes? upper-st "ERASE")
+          (str/includes? upper-st "MERGE")
+          (str/includes? upper-st "PATCH")))))
+
 (defn- prepare-statements
   "Takes a batch of transactions and prepares the jdbc execution args to
-  be run sequentially"
+  be run sequentially. It groups statements by type and wraps DMLs in transactions if system time specified."
   [tx-batches]
   (for [{:keys [txs system-time]} tx-batches]
     (remove nil?
             (when txs
-              (concat
-               (when system-time
-                 [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
-               (vec
-                (keep (fn [q] (when-not (empty? q)
-                                (vector (str/trim q))))
-                      (str/split txs #"\s*;\s*")))
-               (when system-time
-                 [["COMMIT"]]))))))
+              (let [statements (str/split txs #"\s*;\s*")
+                    by-type (partition-by dml? statements)]
+                (log/warn "by-type" by-type)
+                (mapcat
+                 (fn [grp]
+                   (let [dmls? (dml? (first grp))]
+                     (concat
+                      (when (and dmls? system-time)
+                        [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
+                      (vec
+                       (keep (fn [q] (when-not (empty? q)
+                                       [(str/trim q)]))
+                             grp))
+                      (when (and dmls? system-time)
+                        [["COMMIT"]]))))
+                 by-type)
+                )))))
 
 (defn format-system-time [s]
   (when s (read-instant-date s)))
@@ -93,18 +111,26 @@
 (defn- run!-with-jdbc-conn [tx-batches]
   (xtdb/with-jdbc
     (fn [conn]
-      (let [res (mapv (fn [txs]
+      (let [tx-in-progress? (atom false)
+            res (mapv (fn [txs]
                         (vec
                          (mapcat
                           (fn [statement]
                             (log/info "beta executing statement:" statement)
+                            (when (str/includes? (str/upper-case (first statement)) "BEGIN")
+                              (reset! tx-in-progress? true))
                             (try
                               (let [res (parse-result (xtdb/jdbc-execute! conn statement))]
+                                (when (str/includes? (str/upper-case (first statement)) "COMMIT")
+                                  (reset! tx-in-progress? false))
                                 (if-not (vector? (ffirst res))
                                   [res]
                                   res))
                               (catch Exception ex
                                 (log/error "Exception while running statement" (ex-message ex))
+                                (when @tx-in-progress?
+                                  (log/warn "Rolling back transaction")
+                                  (xtdb/jdbc-execute! conn ["ROLLBACK"]))
                                 (parse-result
                                  [{:message (ex-message ex)
                                    :exception (.getClass ex)

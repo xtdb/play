@@ -167,7 +167,7 @@
       "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Transaction succeeded."]
       ^{:key idx}[display-table row tx-type idx])))
 
-(defn- tx-result? [row]
+(defn- tx-result-or-error? [row]
   (let [[[[msg-k _msg] _]] row]
     (#{"next.jdbc/update-count" "message"} msg-k)))
 
@@ -179,11 +179,29 @@
                                 ;; stop editor expanding beyond the viewport
                                 "md:max-w-[48vw] lg:max-w-[49vw] "))
 
+(defn- prune-tx-results [results]
+  (if (every? tx-result-or-error?
+              (map vector results))
+    (drop 1 (drop-last results))
+    (:pruned
+     (reduce (fn [{:keys [tx-err] :as acc} res]
+               (if (tx-result-or-error? [res])
+                 (cond
+                   (= 1 tx-err) (-> acc
+                                    (update :tx-err inc)
+                                    (update :pruned conj res))
+                   (= 2 tx-err) (assoc acc :tx-err 0)
+                   :else (update acc :tx-err inc))
+                 (update acc :pruned conj res)))
+             {:tx-err 0
+              :pruned []}
+             results))))
+
 (defn- tx-results
   "If there is a system-time - there was a transaction, so discard those results."
   [{:keys [system-time]} the-result tx-type]
   (if system-time
-    (map-indexed (partial display-tx-result tx-type) (drop 1 (drop-last the-result)))
+    (map-indexed (partial display-tx-result tx-type) (prune-tx-results the-result))
     (map-indexed (partial display-tx-result tx-type) the-result)))
 
 (defn- results [position]
@@ -205,7 +223,7 @@
              (if failure
                [display-error failure position]
                (let [the-result (get results position)]
-                 (if (tx-result? the-result)
+                 (if (some tx-result-or-error? (map vector the-result))
                    [spacer-header (count results)
                     (tx-results statements the-result tx-type)]
                    (cond
@@ -216,7 +234,10 @@
                      (every? empty? the-result) [spacer-header (count results)
                                                  (empty-rows-message the-result)]
                      :else
-                     [display-table (first the-result) tx-type position]))))))]))))
+                     (map-indexed (fn [idx sub-result]
+                                    ^{:key idx}
+                                    [display-table sub-result tx-type position])
+                                  the-result)))))))]))))
 
 (defn- captions-row [text]
   (let [show-results? (rf/subscribe [::run/show-results?])]
