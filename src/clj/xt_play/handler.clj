@@ -68,6 +68,7 @@
 (defn run-handler [{{body :body} :parameters :as request}]
   (log/debug "run-handler" request)
   (log/info :db-run body)
+  #_(Thread/sleep 4000) ;; useful to confirm the front :db-run-opts timeout
   (if-let [result (txs/run!! body)]
     {:status 200
      :body result}

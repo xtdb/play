@@ -10,7 +10,7 @@
     {:method :post
      :uri "/beta-db-run"
      :params params
-     :timeout 3000
+     :timeout 30000 ;; timeout must be greater than the API cold start response time
      :format (ajax/json-request-format)
      :response-format (ajax/json-response-format {:keywords? true})
      :on-success [::request-success]
