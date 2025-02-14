@@ -15,27 +15,6 @@
             [xt-play.transactions :as txs]
             [xt-play.view :as view]))
 
-;; TODO:
-;; [x] Send tx data back asis - data manipulation server side
-;; [x] Beta is an option in the type
-;; [x] Handle multi tx on pgwire
-;; [x] Handle system time on pgwire
-;; [x] Manipulate response data server side
-;; [x] remove btn
-;; [x] banner
-;; [x] logging
-;; [x] handle todos
-;; [x] Tests!
-;; [x] Refactor - split into more meaningful files
-;; [x] - add config, request, response, xt ns
-;; [x] - split out ui to components
-;; [x] - Better management on subs
-;; [x] cljs tests
-;; [] Handle queries in tx?
-;; [] Display errors in result box
-;; [] automated test runners / pipelines
-;; [] extract common tailwind classes, e.g. icon sizes, to standardize
-
 (s/def ::system-time (s/nilable string?))
 (s/def ::txs string?)
 (s/def ::query (s/nilable string?))
