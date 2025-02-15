@@ -4,11 +4,13 @@
  {org.clojure/clojure {:mvn/version "1.12.0"}
 
   ;; XTDB dependencies
-  com.xtdb/xtdb-api {:mvn/version "2.0.0-beta5"}
-  com.xtdb/xtdb-core {:mvn/version "2.0.0-beta5"}
-  ;; needed only for beta5
-  org.jetbrains.kotlin/kotlin-reflect     {:mvn/version "2.1.0"} ; added for beta5
-  org.jetbrains.kotlin/kotlin-stdlib-jdk8 {:mvn/version "2.1.0"}
+  com.xtdb/xtdb-api {:mvn/version "2.0.0-beta6"}
+  com.xtdb/xtdb-core {:mvn/version "2.0.0-beta6"
+                      ;; needed since beta6 introduced a protobuf dep
+                      ;; see https://github.com/xtdb/xtdb/issues/4172
+                      :exclusions [com.google.protobuf/protobuf-java]}
+  ;; explicit version, instead of the exclusion
+  com.google.protobuf/protobuf-java {:mvn/version "3.25.5"}
 
   org.postgresql/postgresql {:mvn/version "42.7.4"}
   com.github.seancorfield/next.jdbc {:mvn/version "1.3.939"}
