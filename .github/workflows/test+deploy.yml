@@ -1,4 +1,4 @@
-name: Unit tests
+name: Run Unit Tests and Deploy if Successful
 
 on:
   push:
