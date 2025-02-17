@@ -205,7 +205,7 @@
                   query))
 
          (t/testing "docs run returns map results"
-           (t/is (every? vector? (:body response))))
+           (t/is (every? map? (:body response))))
 
          (t/testing "can handle \" strings from docs"
            (t/is (= {:status 200,
@@ -222,4 +222,4 @@
                        "name" "An Electric Bicycle",
                        "price" 400,
                        "_valid_from" #time/zoned-date-time "2024-01-01T00:00Z"}]}
-                    (update response :body last))))))))
+                    response)))))))

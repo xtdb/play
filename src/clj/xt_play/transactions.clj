@@ -177,8 +177,8 @@
   [{:keys [tx-batches query]}]
   (xtdb/with-xtdb
     (fn [node]
+      (run!-tx node "sql"
+               (mapv #(update % :txs util/read-edn) tx-batches))
       (let [res (run!-tx node "sql"
-                         (vec
-                          (conj (mapv #(update % :txs util/read-edn) tx-batches)
-                                {:txs (util/read-edn query) :query true})))]
-        (mapv util/map-results->rows (filter seq res))))))
+                         [{:txs (util/read-edn query) :query true}])]
+        (first res)))))
