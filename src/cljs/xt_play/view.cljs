@@ -217,7 +217,7 @@
                 @show-results?)
         ^{:key position}
         [:div {:class (str half-window-col-class
-                           "grow min-h-0 border overflow-auto")}
+                           "grow min-h-32 border overflow-auto mx-4")}
          (if @loading?
            [spinner]
            (let [{::run/keys [results failure response?]} @results-or-failure]
@@ -273,9 +273,9 @@
             (swap! tx-refs conj ref)
             ^{:key id}
             [:<>
-             [:div {:class "flex flex-col md:flex-row"}
+             [:div {:class "flex flex-col md:flex-row gap-y-16"}
               [:div {:class (str half-window-col-class
-                                 "mx-4 md:pr-4 grow min-h-0 overflow-y-auto ")}
+                                 "mx-4 md:pr-4 grow min-h-0 lg:overflow-y-auto ")}
                (when (< 1 (count statements))
                  [rm-stmt-header id system-time])
                [editor (merge
