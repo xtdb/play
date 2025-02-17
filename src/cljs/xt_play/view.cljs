@@ -88,7 +88,10 @@
 
 (defn- update-db-from-editor-refs [tx-refs]
   (doseq [tx-ref @tx-refs]
-    (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)])))
+    (let [value (get-value tx-ref)]
+      (if (empty? value)
+        (rf/dispatch [::tx-batch/delete (:id @tx-ref)])
+        (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)])))))
 
 (defn- run-button [tx-refs]
   (let [loading? (rf/subscribe [::run/loading?])
