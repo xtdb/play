@@ -161,7 +161,7 @@
       "message" (let [[[_exc exc] [_data data]] more]
                   ^{:key idx} [display-error {:message msg :exception
                                               exc :data data} idx])
-      "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mx-2 "Statement succeeded."]
+      "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mt-2.mx-2 "Statement succeeded."]
       ^{:key idx}[display-table row tx-type idx])))
 
 (defn- tx-result-or-error? [row]
@@ -169,7 +169,11 @@
     (#{"next.jdbc/update-count" "message"} msg-k)))
 
 (defn- spacer-header [cnt children]
-  [:div.px-1 {:class (when (> cnt 1) "pt-8")}
+  [:div
+   (when (> cnt 1)
+     [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
+      [:> XMarkIcon {:class "h-5 w-5"
+                     :visibility "hidden"}]])
    children])
 
 (def half-window-col-class (str "md:mx-0 flex-1 flex flex-col "
@@ -233,7 +237,8 @@
                      :else
                      (map-indexed (fn [idx sub-result]
                                     ^{:key idx}
-                                    [display-table sub-result tx-type position])
+                                    [spacer-header (count results)
+                                     [display-table sub-result tx-type position]])
                                   the-result)))))))]))))
 
 (defn- rm-stmt-header [id system-time]
