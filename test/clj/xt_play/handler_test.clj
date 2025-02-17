@@ -94,11 +94,11 @@
                "SELECT *, _valid_from FROM docs")))
          (let [[begin tx1 _commit begin2 tx2 _commit2 query] @db]
            (t/is (= 7 (count @db)))
-           (t/is (= ["BEGIN AT SYSTEM_TIME TIMESTAMP '2024-12-01T00:00:00.000Z'"]
+           (t/is (= ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-01T00:00:00.000Z')"]
                     begin))
            (t/is (= ["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
                     tx1))
-           (t/is (= ["BEGIN AT SYSTEM_TIME TIMESTAMP '2024-12-02T00:00:00.000Z'"]
+           (t/is (= ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-02T00:00:00.000Z')"]
                     begin2))
            (t/is (= ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
                     tx2))
@@ -118,10 +118,10 @@
                 {:txs "SELECT *, _valid_from FROM docs" :query true}])))
 
          (t/is (= 7 (count @db)))
-         (t/is (= [["BEGIN AT SYSTEM_TIME TIMESTAMP '2024-12-01T00:00:00.000Z'"]
+         (t/is (= [["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-01T00:00:00.000Z')"]
                    ["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
                    ["COMMIT"]
-                   ["BEGIN AT SYSTEM_TIME TIMESTAMP '2024-12-02T00:00:00.000Z'"]
+                   ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-02T00:00:00.000Z')"]
                    ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
                    ["COMMIT"]
                    ["SELECT *, _valid_from FROM docs"]]
