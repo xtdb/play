@@ -35,7 +35,7 @@
          ;; in case of saved link with sql-beta - translate to sql-v2
          type (keyword
                (if (or (empty? type)
-                       (= "sql-beta" type))
+                       (#{"sql-beta" "sql"} type))
                  "sql-v2"
                  type))
          txs (if txs
