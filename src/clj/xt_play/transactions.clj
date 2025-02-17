@@ -63,15 +63,14 @@
                    (let [dmls? (dml? (first grp))]
                      (concat
                       (when (and dmls? system-time)
-                        [[(format "BEGIN AT SYSTEM_TIME TIMESTAMP '%s'" system-time)]])
+                        [[(format "BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '%s')" system-time)]])
                       (vec
                        (keep (fn [q] (when-not (empty? q)
                                        [(str/trim q)]))
                              grp))
                       (when (and dmls? system-time)
                         [["COMMIT"]]))))
-                 by-type)
-                )))))
+                 by-type))))))
 
 (defn format-system-time [s]
   (when s (read-instant-date s)))
