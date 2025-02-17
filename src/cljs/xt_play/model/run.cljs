@@ -3,6 +3,8 @@
             [re-frame.core :as rf]
             [xt-play.model.tx-batch :as tx-batch]))
 
+(def timeout-millis 30000)
+
 (defn- db-run-opts [{:keys [type] :as db}]
   (let [params {:tx-type type
                 :tx-batches (map #(update % :system-time (fn [d] (when d (.toISOString d))))
@@ -10,7 +12,7 @@
     {:method :post
      :uri "/beta-db-run"
      :params params
-     :timeout 30000 ;; timeout must be greater than the API cold start response time
+     :timeout timeout-millis ;; timeout must be greater than the API cold start response time
      :format (ajax/json-request-format)
      :response-format (ajax/json-response-format {:keywords? true})
      :on-success [::request-success]
@@ -40,11 +42,16 @@
 
 (rf/reg-event-db
  ::request-failure
-  (fn [db [_ {:keys [response] :as _failure-map}]]
-    (-> db
-        (dissoc ::loading?)
-        (assoc ::failure response
-               ::show-results? true))))
+ (fn [db [_ {:keys [failure status-text response] :as _failure-map}]]
+   (js/console.log "Request failed: " (clj->js failure))
+   (-> db
+       (dissoc ::loading?)
+       (assoc ::failure (if (= :timeout failure)
+                          {:message status-text
+                           :data (str "Request timed out after "
+                                      (/ timeout-millis 1000) " seconds")}
+                          response)
+              ::show-results? true))))
 
 (rf/reg-event-db
  ::reset-results
