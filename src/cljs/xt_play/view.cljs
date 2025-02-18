@@ -2,7 +2,7 @@
   (:require ["@heroicons/react/24/outline"
              :refer [BookmarkIcon CheckCircleIcon]]
             ["@heroicons/react/24/solid"
-             :refer [PlayIcon XMarkIcon]]
+             :refer [PlayIcon XMarkIcon BugAntIcon]]
             ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
@@ -93,6 +93,10 @@
         (rf/dispatch [::tx-batch/delete (:id @tx-ref)])
         (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)])))))
 
+(def icon-size "h-5 w-5")
+
+(def icon-pointer (str icon-size " cursor-pointer"))
+
 (defn- run-button [tx-refs]
   (let [loading? (rf/subscribe [::run/loading?])
         show-results? (rf/subscribe [::run/show-results?])]
@@ -105,8 +109,8 @@
                             (rf/dispatch [::run/run]))}
       [:div {:class "flex flex-row gap-1 items-center"}
        "Run"
-       [:> PlayIcon {:class "h-5 w-5"}]]]
-     [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
+       [:> PlayIcon {:class icon-size}]]]
+     [:> XMarkIcon {:class icon-pointer
                     :visibility (if (and (not @loading?) @show-results?) "visible" "hidden")
                     :on-click #(rf/dispatch [::run/hide-results!])}]]))
 
@@ -126,12 +130,13 @@
                          (rf/dispatch-sync [:copy-url]))}
 
        (if-not @copy-tick
-         [:<>
+         [:div {:class "flex flex-row items-center gap-1"
+                :title "Share your state by Copying the URL"}
           "Copy URL"
-          [:> BookmarkIcon {:class "h-5 w-5"}]]
-         [:<>
+          [:> BookmarkIcon {:class icon-size}]]
+         [:div {:class "flex flex-row items-center gap-4"}
           "Copied!"
-          [:> CheckCircleIcon {:class "h-5 w-5"}]])])))
+          [:> CheckCircleIcon {:class icon-size}]])])))
 
 (def ^:private logo
   [:a {:href "/"}
@@ -150,7 +155,11 @@
      [:div {:class "flex flex-row"}
       [:a {:class "text-sm text-gray-400"
            :href "https://docs.xtdb.com/quickstart/sql-overview"}
-       "SQL Overview"]]]
+       "SQL Overview"]]
+     [:div {:class "flex flex-row text-sm text-gray-400"}
+      [:a {:class icon-pointer
+           :href "https://github.com/xtdb/xt-fiddle/issues/new"}
+       [:> BugAntIcon {:title "See a bug? Report it here!"}]]]]
     [:div {:class "max-md:hidden flex-grow"}]
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown tx-type]
@@ -181,7 +190,7 @@
   [:div
    (when (> cnt 1)
      [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
-      [:> XMarkIcon {:class "h-5 w-5"
+      [:> XMarkIcon {:class icon-size
                      :visibility "hidden"}]])
    children])
 
@@ -254,7 +263,7 @@
   [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
    [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
     (when system-time (str system-time))]
-   [:> XMarkIcon {:class "h-5 w-5 cursor-pointer"
+   [:> XMarkIcon {:class icon-pointer
                   :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/delete id]]
                                                 [:dispatch [:update-url]]]])}]])
 
