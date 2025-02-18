@@ -4,8 +4,7 @@
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
-            [xt-play.xtdb :as xtdb]
-            [xtdb.next.jdbc :as xjdbc]))
+            [xt-play.xtdb :as xtdb]))
 
 (defn- dml? [statement]
   (when statement
@@ -58,7 +57,6 @@
             (when txs
               (let [statements (split-sql txs)
                     by-type (partition-by dml? statements)]
-                (log/warn "by-type" by-type)
                 (mapcat
                  (fn [grp]
                    (let [dmls? (dml? (first grp))]
@@ -111,7 +109,7 @@
         tx-results
         (doall (mapv
                 (fn [{:keys [system-time query txs] :as batch}]
-                  (log/info tx-type "running batch: " batch)
+                  (log/debug tx-type "running batch: " batch)
                   (try
                     (if query
                       (xtdb/query node txs)
@@ -123,7 +121,7 @@
                          :exception (.getClass ex)
                          :data (ex-data ex)}]))))
                 tx-batches))]
-    (log/warn "run!-tx-res" tx-results)
+    (log/debug "run!-tx-res" tx-results)
     tx-results))
 
 
@@ -135,7 +133,7 @@
                         (vec
                          (mapcat
                           (fn [statement]
-                            (log/info "beta executing statement:" statement)
+                            (log/debug "beta executing statement:" statement)
                             (when (str/includes? (str/upper-case (first statement)) "BEGIN")
                               (reset! tx-in-progress? true))
                             (try
@@ -156,7 +154,7 @@
                                    :data (ex-data ex)}]))))
                           txs)))
                       (transform-statements tx-batches))]
-        (log/info "run!-with-jdbc-conn-res" res)
+        (log/debug "run!-with-jdbc-conn-res" res)
         res))))
 
 (defn run!!
@@ -169,7 +167,7 @@
       (if (#{"sql-v2" "sql"} tx-type)
         (run!-with-jdbc-conn tx-batches)
         (let [res (run!-tx node tx-type tx-batches)]
-          (log/warn "run!!" res)
+          (log/debug "run!!" res)
           (mapv (comp vector util/map-results->rows) res))))))
 
 (defn docs-run!!

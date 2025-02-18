@@ -11,11 +11,11 @@
     (f node)))
 
 (defn query [node q]
-  (log/info :query q)
+  (log/debug :query q)
   (xt/q node q (when (string? q) {:key-fn :snake-case-string})))
 
 (defn submit! [node txs opts]
-  (log/info :submit-tx txs opts)
+  (log/debug :submit-tx txs opts)
   (let [tx (xt/submit-tx node txs opts)
         results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
                       {:args {:tx-id (:tx-id tx)}})]
@@ -32,7 +32,7 @@
 
 (defn jdbc-execute!
   [conn statement]
-  (log/info :jdbc-execute! statement)
+  (log/debug :jdbc-execute! statement)
   (jdbc/execute! conn statement {:builder-fn jdbc-res/as-arrays}))
 
 (comment
