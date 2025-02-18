@@ -146,7 +146,11 @@
     [:div {:class "w-full flex flex-row items-center gap-4"}
      logo
      [:span {:class "text-sm text-gray-400"}
-      @(rf/subscribe [:version])]]
+      @(rf/subscribe [:version])]
+     [:div {:class "flex flex-row"}
+      [:a {:class "text-sm text-gray-400"
+           :href "https://docs.xtdb.com/quickstart/sql-overview"}
+       "SQL Overview"]]]
     [:div {:class "max-md:hidden flex-grow"}]
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown tx-type]
