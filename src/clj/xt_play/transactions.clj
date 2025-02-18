@@ -4,20 +4,8 @@
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
-            [xt-play.xtdb :as xtdb]))
-
-(defn- encode-txs [tx-type query? txs]
-  (case (keyword tx-type)
-    :sql (if (and (not query?)
-                  (string? txs))
-           (->> (str/split txs #";")
-                (remove str/blank?)
-                (map #(do [:sql %]))
-                (vec))
-           txs)
-    :xtql (util/read-edn (if query? txs (str "[" txs "]")))
-    ;;else
-    txs))
+            [xt-play.xtdb :as xtdb]
+            [xtdb.next.jdbc :as xjdbc]))
 
 (defn- dml? [statement]
   (when statement
@@ -47,6 +35,19 @@
 
           :else
           (recur rest-chars (conj current c) statements in-string? false))))))
+
+(defn- encode-txs [tx-type query? txs]
+  (case (keyword tx-type)
+    :sql (if (and (not query?)
+                  (string? txs))
+           (->> (split-sql txs)
+                (remove str/blank?)
+                (map #(do [:sql %]))
+                (vec))
+           txs)
+    :xtql (util/read-edn (if query? txs (str "[" txs "]")))
+    ;;else
+    txs))
 
 (defn- transform-statements
   "Takes a batch of transactions and outputs the jdbc execution args to
