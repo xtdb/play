@@ -23,7 +23,8 @@
              :on-click #(rf/dispatch [:dropdown-selection (:value %)])
              :label (get-in config/tx-types [tx-type :label])}])
 
-(defn- spinner [] [:div [:> SixDotsScale]])
+(defn- spinner [] [:div {:class "flex justify-center items-center h-full"}
+                   [:> SixDotsScale]])
 
 (defn get-value [ref]
   (when-let [refd @ref]
