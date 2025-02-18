@@ -1,10 +1,10 @@
 (ns xt-play.xtdb
   (:require [clojure.tools.logging :as log]
             [next.jdbc :as jdbc]
-            [next.jdbc.result-set :as jdbc-res]
             [xt-play.config :as config]
             [xtdb.api :as xt]
-            [xtdb.node :as xtn]))
+            [xtdb.node :as xtn]
+            [xtdb.next.jdbc :as xjdbc]))
 
 (defn with-xtdb [f]
   (with-open [node (xtn/start-node config/node-config)]
@@ -19,7 +19,7 @@
   (let [tx (xt/submit-tx node txs opts)
         results (xt/q node '(from :xt/txs [{:xt/id $tx-id} xt/error])
                       {:args {:tx-id (:tx-id tx)}})]
-    (log/info :submit-tx-result results)
+    (log/debug :submit-tx-result results)
     (if-let [error (-> results first :xt/error)]
       {:message (ex-message error)
        :exception (.getClass error)
@@ -33,7 +33,7 @@
 (defn jdbc-execute!
   [conn statement]
   (log/debug :jdbc-execute! statement)
-  (jdbc/execute! conn statement {:builder-fn jdbc-res/as-arrays}))
+  (jdbc/execute! conn statement {:builder-fn xjdbc/builder-fn}))
 
 (comment
   (with-open [node (xtn/start-node config/node-config)]

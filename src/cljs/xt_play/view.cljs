@@ -159,17 +159,19 @@
 (defn- empty-rows-message [results] (str (count results) " empty row(s) returned"))
 
 (defn- display-tx-result [tx-type idx row]
-  (let [[[msg-k msg] & more] row]
+  (let [[[msg-k _] & more] row]
     (case msg-k
-      "message" (let [[[_exc exc] [_data data]] more]
-                  ^{:key idx} [display-error {:message msg :exception
-                                              exc :data data} idx])
+      "message" (let [[[msg exc data] ] more]
+                  ^{:key idx} [display-error {:message msg
+                                              :exception exc
+                                              :data data} idx])
       "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mt-2.mx-2 "Statement succeeded."]
       ^{:key idx}[display-table row tx-type idx])))
 
 (defn- tx-result-or-error? [row]
-  (let [[[[msg-k _msg] _]] row]
-    (#{"next.jdbc/update-count" "message"} msg-k)))
+  (let [[[[msg-k exc data] _]] row]
+    (or (= "next.jdbc/update-count" msg-k)
+        (= ["message" "exception" "data"] [msg-k exc data]))))
 
 (defn- spacer-header [cnt children]
   [:div

@@ -1,6 +1,5 @@
 (ns xt-play.transactions
   (:require [clojure.string :as str]
-            [jsonista.core :as j]
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
@@ -74,24 +73,22 @@
 (defn format-system-time [s]
   (when s (read-instant-date s)))
 
-(defn- PG->clj [v]
-  (cond
-    (instance? org.postgresql.util.PGobject v) (-> (.getValue v)
-                                                   (j/read-value j/keyword-keys-object-mapper))
-    (instance? org.postgresql.jdbc.PgArray v) (->> (.getArray v)
-                                                   (into [])
-                                                   (str/join ",")
-                                                   (format "[%s]"))
-    :else v))
+(defn- parse-PG-array [v]
+  (if
+   (instance? org.postgresql.jdbc.PgArray v)
+    (->> (.getArray v)
+         (into [])
+         (str/join ",")
+         (format "[%s]"))
+    v))
 
 (defn- parse-result [result]
-  ;; TODO - this shouldn't be needed, a fix is on the way in
-  ;;        a later version of xtdb-jdb
-  ;; This should do it for now - get decent string representation so it looks more like psql output
-  (mapv
-   (fn [row]
-     (mapv PG->clj row))
-   result))
+  (let [columns (vec (keys (first result)))]
+    (into [columns]
+          (mapv
+           (fn [row]
+             (mapv parse-PG-array (vals row)))
+           result))))
 
 (defn- detect-xtql-queries [batch]
   (if (:query batch)
@@ -116,14 +113,13 @@
                       (xtdb/submit! node txs {:system-time system-time}))
                     (catch Throwable ex
                       (log/error "Exception while running transaction" (ex-message ex))
-                      (parse-result
-                       [{:message (ex-message ex)
-                         :exception (.getClass ex)
-                         :data (ex-data ex)}]))))
+                      [(parse-result
+                        [{:message (ex-message ex)
+                          :exception (.getClass ex)
+                          :data (ex-data ex)}])])))
                 tx-batches))]
-    (log/debug "run!-tx-res" tx-results)
+    (log/info "run!-tx-res" tx-results)
     tx-results))
-
 
 (defn- run!-with-jdbc-conn [tx-batches]
   (xtdb/with-jdbc
@@ -148,13 +144,13 @@
                                 (when @tx-in-progress?
                                   (log/warn "Rolling back transaction")
                                   (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                                (parse-result
-                                 [{:message (ex-message ex)
-                                   :exception (.getClass ex)
-                                   :data (ex-data ex)}]))))
+                                [(parse-result
+                                  [{:message (ex-message ex)
+                                    :exception (.getClass ex)
+                                    :data (ex-data ex)}])])))
                           txs)))
                       (transform-statements tx-batches))]
-        (log/debug "run!-with-jdbc-conn-res" res)
+        (log/info "run!-with-jdbc-conn-res" res)
         res))))
 
 (defn run!!

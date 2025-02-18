@@ -5,6 +5,7 @@
 
   ;; XTDB dependencies
   com.xtdb/xtdb-api {:mvn/version "2.0.0-beta6"}
+  com.xtdb/xtdb-jdbc {:mvn/version "2.0.0-beta6"}
   com.xtdb/xtdb-core {:mvn/version "2.0.0-beta6"
                       ;; needed since beta6 introduced a protobuf dep
                       ;; see https://github.com/xtdb/xtdb/issues/4172
