@@ -57,6 +57,28 @@
         "Data:"]
        [:p (pr-str data)]])]])
 
+(defn- print-array [arr]
+  (-> (reduce (fn [acc v]
+                (str acc
+                     (cond
+                       (vector? v) (print-array v)
+                       (map? v) (-> (reduce-kv
+                                     (fn [acc k val]
+                                       (str acc
+                                            (if (keyword? k) (name k) k)
+                                            ": "
+                                            (if (vector? val)
+                                              (print-array val)
+                                              val) ", "))
+                                     "{"
+                                     v)
+                                    (str/replace #", $" "}"))
+                       :else v)
+                     ", "))
+              "["
+              arr)
+      (str/replace #", $" "]")))
+
 (defn- display-table [results tx-type position]
   (when results
     ^{:key position}
@@ -81,7 +103,9 @@
                  (pr-str value)]
                 ;; default
                 [hl/code {:language "json"}
-                 (str value)])]))]))]]))
+                 (if (vector? value)
+                   (print-array value)
+                   (str value))])]))]))]]))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]

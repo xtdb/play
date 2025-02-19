@@ -77,9 +77,7 @@
   (if
    (instance? org.postgresql.jdbc.PgArray v)
     (->> (.getArray v)
-         (into [])
-         (str/join ",")
-         (format "[%s]"))
+         (into []))
     v))
 
 (defn- parse-result [result]
