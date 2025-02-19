@@ -5,8 +5,7 @@
             [next.jdbc :as jdbc]
             #_:clj-kondo/ignore
             [time-literals.data-readers :as time]
-            [xt-play.handler :as h]
-            [xtdb.api :as xt]))
+            [xt-play.handler :as h]))
 
 ;; todo - this should be purely testing xt responses, not the handler.
 ;; can share the expected tx data from the results to keep in sync with changes
