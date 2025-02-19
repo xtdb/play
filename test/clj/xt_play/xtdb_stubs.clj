@@ -29,7 +29,7 @@
   (log/info :stub-jdbc-execute! statement)
   (execute! statement)
   (or @resp
-      [[:_id :col1 :col2] [2 "bar" " baz"] [1 "foo" nil]]))
+      [{:_id 2 :col1 "bar" :col2 " baz"} {:_id 1 :col1 "foo" :col2 nil}]))
 
 (defn with-stubs [f]
   (with-redefs [xtdb/with-xtdb with-xtdb

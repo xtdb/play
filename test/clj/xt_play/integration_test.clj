@@ -16,30 +16,33 @@
 
 (t/deftest run-handler-test
   (t/testing "xtql example returns expected results"
-    (t/is (= {:status 200, :body [[:foo :xt/id] ["bar" 1]]}
+    (t/is (= {:status 200, :body [[[]] [[[:foo :xt/id] ["bar" 1]]]]}
              (h/run-handler (t-file "xtql-example-request")))))
 
   (t/testing "sql example returns expected results"
     (t/is (= {:status 200,
               :body
-              [["_id" "col1" "col2"]
-               [2 "bar" " baz"]
-               [1 "foo" nil]]}
+              [[[[:next.jdbc/update-count] [0]] [[:next.jdbc/update-count] [0]]]
+               [[[:xt/id :col1 :col2]
+                 [2 "bar" " baz"]
+                 [1 "foo" nil]]]]}
              (h/run-handler (t-file "sql-example-request")))))
 
   (t/testing "beta sql example returns expected results"
     (t/is (= {:status 200,
               :body
-              [[:_id :col1 :col2]
-               [2 "bar" " baz"]
-               [1 "foo" nil]]}
+              [[[[:next.jdbc/update-count] [0]] [[:next.jdbc/update-count] [0]]]
+               [[[:xt/id :col1 :col2]
+                 [2 "bar" " baz"]
+                 [1 "foo" nil]]]]}
              (h/run-handler (t-file "beta-sql-example-request"))))))
 
 (t/deftest run-handler-multi-transactions-test
   (t/testing "multiple transactions in xtql"
-    (t/is (= {:status 200, :body [[:foo :xt/id]
-                                  ["baz" 2]
-                                  ["bar" 1]]}
+    (t/is (= {:status 200, :body [[[]] [[]]
+                                  [[[:foo :xt/id]
+                                    ["baz" 2]
+                                    ["bar" 1]]]]}
              (h/run-handler
               (assoc-in
                (t-file "xtql-example-request")
@@ -47,14 +50,21 @@
                [{:txs "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]",
                  :system-time "2024-12-01T00:00:00.000Z"}
                 {:txs "[:put-docs :docs {:xt/id 2 :foo \"baz\"}]",
-                 :system-time nil}])))))
+                 :system-time nil}
+                {:txs "(from :docs [xt/id foo])", :query true}])))))
 
   (t/testing "multiple transacions on sql"
     (t/is (= {:status 200,
               :body
-              [["_id" "col1" "col2" "_valid_from"]
-               [2 "bar" " baz" #time/zoned-date-time "2024-12-02T00:00Z[UTC]"]
-               [1 "foo" nil #time/zoned-date-time "2024-12-01T00:00Z[UTC]"]]}
+              [[[[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]]
+               [[[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]]
+               [[[:xt/id :col1 :col2 :xt/valid-from]
+                 [2 "bar" " baz" #inst "2024-12-02T00:00:00.000000000-00:00"]
+                 [1 "foo" nil #inst "2024-12-01T00:00:00.000000000-00:00"]]]]}
              (h/run-handler
               (-> (t-file "sql-example-request")
                   (assoc-in
@@ -62,17 +72,21 @@
                    [{:txs "INSERT INTO docs (_id, col1) VALUES (1, 'foo');",
                      :system-time "2024-12-01T00:00:00.000Z"}
                     {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
-                     :system-time "2024-12-02T00:00:00.000Z"}])
-                  (assoc-in
-                   [:parameters :body :query]
-                   "SELECT *, _valid_from FROM docs"))))))
+                     :system-time "2024-12-02T00:00:00.000Z"}
+                    {:txs "SELECT *, _valid_from FROM docs" :query true}]))))))
 
   (t/testing "beta sql can run multiple txs"
     (t/is (= {:status 200,
               :body
-              [[:_id :col1 :col2 :_valid_from]
-               [2 "bar" " baz" #inst "2024-12-02T00:00:00.000000000-00:00"]
-               [1 "foo" nil #inst "2024-12-01T00:00:00.000000000-00:00"]]}
+              [[[[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]]
+               [[[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]
+                [[:next.jdbc/update-count] [0]]]
+               [[[:xt/id :col1 :col2 :xt/valid-from]
+                 [2 "bar" " baz" #inst "2024-12-02T00:00:00.000000000-00:00"]
+                 [1 "foo" nil #inst "2024-12-01T00:00:00.000000000-00:00"]]]]}
              (h/run-handler
               (-> (t-file "beta-sql-example-request")
                   (assoc-in
@@ -80,22 +94,22 @@
                    [{:txs "INSERT INTO docs (_id, col1) VALUES (1, 'foo');",
                      :system-time "2024-12-01T00:00:00.000Z"}
                     {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
-                     :system-time "2024-12-02T00:00:00.000Z"}])
-                  (assoc-in
-                   [:parameters :body :query]
-                   "SELECT *, _valid_from FROM docs")))))))
+                     :system-time "2024-12-02T00:00:00.000Z"}
+                    {:txs "SELECT *, _valid_from FROM docs" :query true}])))))))
 
 (t/deftest beta-sql-run-features
   (t/testing "Column order is maintained"
     (t/is (= {:status 200,
-              :body [[:_id :a :b :c :d :e :f :g :h :j]
-                     [1 2 3 4 5 6 7 8 9 10]]}
+              :body [[[[:next.jdbc/update-count] [0]]]
+                     [[[:e :g :c :j :h :b :d :f :xt/id :a]
+                       [6 8 4 10 9 3 5 7 1 2]]]]}
              (h/run-handler
               (assoc-in
                (t-file "beta-sql-example-request")
                [:parameters :body :tx-batches]
                [{:txs "INSERT INTO docs RECORDS {_id: 1, a: 2, b: 3, c: 4, d: 5, e: 6, f: 7, g: 8, h: 9, j: 10}"
-                 :system-time nil}])))))
+                 :system-time nil}
+                {:txs "SELECT * FROM docs" :query true}])))))
 
   (t/testing "execute payload is not mutated"
     (let [txs (atom [])]
@@ -103,33 +117,35 @@
                                     (swap! txs conj statement))]
         (h/run-handler (t-file "beta-sql-example-request"))
         (t/is
-         (= [["INSERT INTO docs (_id, col1) VALUES (1, 'foo');"]
-             ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};"]
+         (= [["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
+             ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
              ["SELECT * FROM docs"]]
             @txs)))))
 
   (t/testing "xt submit-tx sql payload is reformatted"
     (let [txs (atom [])]
-      (with-redefs [xt/submit-tx (fn [_node tx & _args]
-                                   (swap! txs conj tx))]
+      (with-redefs [jdbc/execute! (fn [_node tx & _args]
+                                    (swap! txs conj tx))]
         (h/run-handler (t-file "sql-example-request"))
         (t/is
-         (= [[[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-              [:sql "\nINSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]]
+         (= [["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
+             ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
+             ["SELECT * FROM docs"]]
             @txs)))))
 
   (t/testing "erroneous statement returns error in v2"
     (t/is
-     (= {:status 400
-         :body {:message "+ not applicable to types tstz-range and interval"
-                :exception "xtdb.IllegalArgumentException"
-                :data {:xtdb.error/error-key "xtdb.expression/function-type-mismatch"}}}
+     (= {:status 200
+         :body [[[[:message :exception :data]
+                  ["ERROR: Error preparing statement: + not applicable to types tstz-range and interval"
+                   org.postgresql.util.PSQLException
+                   nil]]]]}
         (h/run-handler
          {:parameters
           {:body
            {:tx-type "sql-v2",
-            :tx-batches [],
-            :query "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"}}})))))
+            :tx-batches [{:txs "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"
+                          :query true}]}}})))))
 
 (t/deftest sql-says-carol-is-red-test
   (t/testing "XTDB docs example for sql https://docs.xtdb.com/quickstart/sql-overview.html"

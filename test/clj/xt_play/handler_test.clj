@@ -89,9 +89,9 @@
                 {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
                  :system-time "2024-12-02T00:00:00.000Z"}
                 {:txs "SELECT * FROM docs" :query true}])
-              (assoc-in
-               [:parameters :body :query]
-               "SELECT *, _valid_from FROM docs")))
+              (update-in
+               [:parameters :body]
+               dissoc :query)))
          (let [[begin tx1 _commit begin2 tx2 _commit2 query] @db]
            (t/is (= 7 (count @db)))
            (t/is (= ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-01T00:00:00.000Z')"]
