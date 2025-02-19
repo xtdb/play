@@ -133,7 +133,7 @@
                             (update-db-from-editor-refs tx-refs)
                             (rf/dispatch [::run/run]))}
       [:div {:class "flex flex-row gap-1 items-center"
-             :title "Press 'R' to run"}
+             :title "Press 'CMD+ENTER' or 'CTRL+ENTER' to run"}
        "Run"
        [:> PlayIcon {:class icon-size}]]]
      [:> XMarkIcon {:class icon-pointer

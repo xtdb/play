@@ -59,7 +59,9 @@
 
 (defn handle-keypress [evt]
   (let [key (.-key evt)]
-    (when (= "R" key)
+    (when (and (or (.-ctrlKey evt)
+                   (.-metaKey evt))
+               (= "Enter" key))
       (rf/dispatch [::run/run]))))
 
 (defn ^:dev/after-load start! []
