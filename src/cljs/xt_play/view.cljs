@@ -132,7 +132,8 @@
                :on-click #(do
                             (update-db-from-editor-refs tx-refs)
                             (rf/dispatch [::run/run]))}
-      [:div {:class "flex flex-row gap-1 items-center"}
+      [:div {:class "flex flex-row gap-1 items-center"
+             :title "Press 'R' to run"}
        "Run"
        [:> PlayIcon {:class icon-size}]]]
      [:> XMarkIcon {:class icon-pointer

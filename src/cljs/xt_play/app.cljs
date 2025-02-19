@@ -1,5 +1,7 @@
 (ns xt-play.app
   (:require [day8.re-frame.http-fx] ;; don't delete
+            [goog.events :as events]
+            [goog.events.EventType :as EventType]
             [lambdaisland.glogi :as log]
             [lambdaisland.glogi.console :as glogi-console]
             [re-frame.core :as rf]
@@ -8,6 +10,7 @@
             [goog.dom :as gdom]
             [xt-play.components.highlight :as hl]
             [xt-play.model.query-params :as query-params]
+            [xt-play.model.run :as run]
             [xt-play.model.tx-batch :as tx-batch]
             [xt-play.view :as view]))
 
@@ -54,10 +57,16 @@
 
 (defonce root (createRoot (gdom/getElement "app")))
 
+(defn handle-keypress [evt]
+  (let [key (.-key evt)]
+    (when (= "R" key)
+      (rf/dispatch [::run/run]))))
+
 (defn ^:dev/after-load start! []
   (log/info :start "start")
   (hl/setup)
   (rf/dispatch-sync [::init js/xt_version])
+  (events/listen js/document EventType/KEYDOWN handle-keypress)
   (.render root (r/as-element [view/app])))
 
 (defn ^:export init []
