@@ -202,16 +202,16 @@
 (defn- display-tx-result [tx-type idx row]
   (let [[[msg-k _] & more] row]
     (case msg-k
-      "message" (let [[[msg exc data] ] more]
+      "message" (let [[[msg exc data]] more]
                   ^{:key idx} [display-error {:message msg
                                               :exception exc
                                               :data data} idx])
-      "next.jdbc/update-count" ^{:key idx} [:p.mb-2.mt-2.mx-2 "Statement succeeded."]
-      ^{:key idx}[display-table row tx-type idx])))
+      "next$jdbc$update_count" ^{:key idx} [:p.mb-2.mt-2.mx-2 "Statement succeeded."]
+      ^{:key idx} [display-table row tx-type idx])))
 
 (defn- tx-result-or-error? [row]
   (let [[[[msg-k exc data] _]] row]
-    (or (= "next.jdbc/update-count" msg-k)
+    (or (= "next$jdbc$update_count" msg-k)
         (= ["message" "exception" "data"] [msg-k exc data]))))
 
 (defn- spacer-header [cnt children]

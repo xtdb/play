@@ -3,7 +3,8 @@
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
-            [xt-play.xtdb :as xtdb]))
+            [xt-play.xtdb :as xtdb]
+            [xtdb.next.jdbc :as xt-jdbc]))
 
 (defn- dml? [statement]
   (when statement
@@ -80,8 +81,9 @@
          (into []))
     v))
 
-(defn- parse-result [result]
-  (let [columns (vec (keys (first result)))]
+(defn- xform-result [result]
+  (let [columns (mapv xt-jdbc/->sql-col
+                      (keys (first result)))]
     (into [columns]
           (mapv
            (fn [row]
@@ -111,7 +113,7 @@
                       (xtdb/submit! node txs {:system-time system-time}))
                     (catch Throwable ex
                       (log/error "Exception while running transaction" (ex-message ex))
-                      [(parse-result
+                      [(xform-result
                         [{:message (ex-message ex)
                           :exception (.getClass ex)
                           :data (ex-data ex)}])])))
@@ -131,7 +133,7 @@
                             (when (str/includes? (str/upper-case (first statement)) "BEGIN")
                               (reset! tx-in-progress? true))
                             (try
-                              (let [res (parse-result (xtdb/jdbc-execute! conn statement))]
+                              (let [res (xform-result (xtdb/jdbc-execute! conn statement))]
                                 (when (str/includes? (str/upper-case (first statement)) "COMMIT")
                                   (reset! tx-in-progress? false))
                                 (if-not (vector? (ffirst res))
@@ -142,7 +144,7 @@
                                 (when @tx-in-progress?
                                   (log/warn "Rolling back transaction")
                                   (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                                [(parse-result
+                                [(xform-result
                                   [{:message (ex-message ex)
                                     :exception (.getClass ex)
                                     :data (ex-data ex)}])])))
