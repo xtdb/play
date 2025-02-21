@@ -194,8 +194,10 @@
      [run-button tx-refs]]]])
 
 (def ^:private initial-message [:p {:class "text-gray-400"} "Enter a statement to see results"])
-(def ^:private no-results-message "No results returned")
-(defn- empty-rows-message [results] (str (count results) " empty row(s) returned"))
+(def ^:private no-results-message [:div {:class "pl-2 pt-2"}
+                                   "No results returned"])
+(defn- empty-rows-message [results] [:div {:class "pl-2 pt-2"}
+                                     (str (count results) " empty row(s) returned")])
 
 (defn- display-tx-result [tx-type idx row]
   (let [[[msg-k _] & more] row]
@@ -276,8 +278,10 @@
                                       initial-message]
                      (empty? results) [spacer-header (count results)
                                        no-results-message]
-                     (every? empty? the-result) [spacer-header (count results)
-                                                 (empty-rows-message the-result)]
+                     (= [[[]]] the-result) [spacer-header (count results)
+                                            no-results-message]
+                     (every? #(= [[]] %) the-result) [spacer-header (count results)
+                                                      (empty-rows-message the-result)]
                      :else
                      (map-indexed (fn [idx sub-result]
                                     ^{:key idx}
