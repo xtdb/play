@@ -267,6 +267,7 @@
          (if @loading?
            [spinner]
            (let [{::run/keys [results failure response?]} @results-or-failure]
+             (println position results)
              (if failure
                [display-error failure position]
                (let [the-result (get results position)]
