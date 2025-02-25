@@ -61,7 +61,7 @@
 
 (defn- display-warnings [warnings]
   [:div {:class "flex flex-col gap-2"}
-   [:div {:class "bg-red-50 border-r-4 border-red-300 text-red-500 p-4"}
+   [:div {:class "bg-red-50 border-l-4 border-red-300 text-gray-700 p-4"}
     [:p {:class "font-bold"} "Warnings:"]
     [:p {:class "whitespace-pre-wrap font-mono"}
      (->> warnings
