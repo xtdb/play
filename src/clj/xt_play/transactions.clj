@@ -113,10 +113,9 @@
                       (xtdb/submit! node txs {:system-time system-time}))
                     (catch Throwable ex
                       (log/error "Exception while running transaction" (ex-message ex))
-                      [(xform-result
-                        [{:message (ex-message ex)
-                          :exception (.getClass ex)
-                          :data (ex-data ex)}])])))
+                      {:error {:message (ex-message ex)
+                               :exception (.getClass ex)
+                               :data (ex-data ex)}})))
                 tx-batches))]
     (log/info "run!-tx-res" tx-results)
     tx-results))
@@ -126,31 +125,30 @@
     (fn [conn]
       (let [tx-in-progress? (atom false)
             res (mapv (fn [txs]
-                        (vec
-                         (mapcat
-                          (fn [statement]
-                            (log/debug "beta executing statement:" statement)
-                            (when (str/includes? (str/upper-case (first statement)) "BEGIN")
-                              (reset! tx-in-progress? true))
-                            (try
-                              (let [res (xform-result (xtdb/jdbc-execute! conn statement))]
-                                (when (str/includes? (str/upper-case (first statement)) "COMMIT")
-                                  (reset! tx-in-progress? false))
-                                (if-not (vector? (ffirst res))
-                                  [res]
-                                  res))
-                              (catch Exception ex
-                                (log/error "Exception while running statement" (ex-message ex))
-                                (when @tx-in-progress?
-                                  (log/warn "Rolling back transaction")
-                                  (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                                [(xform-result
-                                  [{:message (ex-message ex)
-                                    :exception (.getClass ex)
-                                    :data (ex-data ex)}])])))
-                          txs)))
+                        (mapv
+                         (fn [statement]
+                           (log/debug "beta executing statement:" statement)
+                           (when (str/includes? (str/upper-case (first statement)) "BEGIN")
+                             (reset! tx-in-progress? true))
+                           (try
+                             (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
+                                   res (xform-result rs)]
+                               (when (str/includes? (str/upper-case (first statement)) "COMMIT")
+                                 (reset! tx-in-progress? false))
+                               (log/info :run-with-jdbc-conn-warnings warnings)
+                               {:result res
+                                :warnings warnings})
+                             (catch Exception ex
+                               (log/error "Exception while running statement" (ex-message ex))
+                               (when @tx-in-progress?
+                                 (log/warn "Rolling back transaction")
+                                 (xtdb/jdbc-execute! conn ["ROLLBACK"]))
+                               {:error {:message (ex-message ex)
+                                        :exception (.getClass ex)
+                                        :data (ex-data ex)}})))
+                         txs))
                       (transform-statements tx-batches))]
-        (log/info "run!-with-jdbc-conn-res" res)
+        (log/debug "run!-with-jdbc-conn-res" res)
         res))))
 
 (defn run!!
@@ -164,7 +162,7 @@
         (run!-with-jdbc-conn tx-batches)
         (let [res (run!-tx node tx-type tx-batches)]
           (log/debug "run!!" res)
-          (mapv (comp vector util/map-results->rows) res))))))
+          (mapv util/map-results->rows res))))))
 
 (defn docs-run!!
   "Given transaction batches and a query from the docs, will return the query
@@ -176,4 +174,4 @@
                (mapv #(update % :txs util/read-edn) tx-batches))
       (let [res (run!-tx node "sql"
                          [{:txs (util/read-edn query) :query true}])]
-        (first res)))))
+        (ffirst res)))))

@@ -20,7 +20,9 @@
 (defn- language-dropdown [tx-type]
   [dropdown {:items model/items
              :selected tx-type
-             :on-click #(rf/dispatch [:dropdown-selection (:value %)])
+             :on-click #(do
+                          (rf/dispatch [:dropdown-selection (:value %)])
+                          (rf/dispatch [::run/hide-results!]))
              :label (get-in config/tx-types [tx-type :label])}])
 
 (defn- spinner [] [:div {:class "flex justify-center items-center h-full"}
@@ -57,6 +59,14 @@
         "Data:"]
        [:p (pr-str data)]])]])
 
+(defn- display-warnings [warnings]
+  [:div {:class "flex flex-col gap-2"}
+   [:div {:class "bg-red-50 border-r-4 border-red-300 text-red-500 p-4"}
+    [:p {:class "font-bold"} "Warnings:"]
+    [:p {:class "whitespace-pre-wrap font-mono"}
+     (->> warnings
+          (map-indexed #(do ^{:key (str "span-" %1)} [:<> [:span %2] [:br]])))]]])
+
 (defn- print-array [arr]
   (-> (reduce (fn [acc v]
                 (str acc
@@ -79,33 +89,34 @@
               arr)
       (str/replace #", $" "]")))
 
-(defn- display-table [results tx-type position]
-  (when results
-    ^{:key position}
-    [:table {:class "table-auto w-full"}
-     [:thead
-      [:tr {:class "border-b"}
-       (for [label (first results)]
-         ^{:key label}
-         [:th {:class "text-left p-4"} label])]]
-     [:tbody
-      (doall
-       (for [[i row] (map-indexed vector (rest results))]
-         ^{:key (str "row-" i)}
-         [:tr {:class "border-b"}
-          (doall
-           (for [[ii value] (map-indexed vector row)]
-             ^{:key (str "row-" i " col-" ii)}
-             [:td {:class "text-left p-4"}
-              (case @tx-type
-                :xtql
-                [hl/code {:language "clojure"}
-                 (pr-str value)]
+(defn- display-table [results position]
+  (let [tx-type (rf/subscribe [:get-type])]
+    (when results
+      ^{:key position}
+      [:table {:class "table-auto w-full"}
+       [:thead
+        [:tr {:class "border-b"}
+         (for [label (first results)]
+           ^{:key label}
+           [:th {:class "text-left p-4"} label])]]
+       [:tbody
+        (doall
+         (for [[i row] (map-indexed vector (rest results))]
+           ^{:key (str "row-" i)}
+           [:tr {:class "border-b"}
+            (doall
+             (for [[ii value] (map-indexed vector row)]
+               ^{:key (str "row-" i " col-" ii)}
+               [:td {:class "text-left p-4"}
+                (case @tx-type
+                  :xtql
+                  [hl/code {:language "clojure"}
+                   (pr-str value)]
                 ;; default
-                [hl/code {:language "json"}
-                 (if (vector? value)
-                   (print-array value)
-                   (str value))])]))]))]]))
+                  [hl/code {:language "json"}
+                   (if (vector? value)
+                     (print-array value)
+                     (str value))])]))]))]])))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]
@@ -199,20 +210,9 @@
 (defn- empty-rows-message [results] [:div {:class "pl-2 pt-2"}
                                      (str (count results) " empty row(s) returned")])
 
-(defn- display-tx-result [tx-type idx row]
-  (let [[[msg-k _] & more] row]
-    (case msg-k
-      "message" (let [[[msg exc data]] more]
-                  ^{:key idx} [display-error {:message msg
-                                              :exception exc
-                                              :data data} idx])
-      "next$jdbc$update_count" ^{:key idx} [:p.mb-2.mt-2.mx-2 "Statement succeeded."]
-      ^{:key idx} [display-table row tx-type idx])))
-
 (defn- tx-result-or-error? [row]
-  (let [[[[msg-k exc data] _]] row]
-    (or (= "next$jdbc$update_count" msg-k)
-        (= ["message" "exception" "data"] [msg-k exc data]))))
+  (or (= [[]] (:result row))
+      (contains? row :error)))
 
 (defn- spacer-header [cnt children]
   [:div
@@ -228,7 +228,7 @@
 
 (defn- prune-tx-results [results]
   (if (every? tx-result-or-error?
-              (map vector results))
+              results)
     (drop 1 (drop-last results))
     (:pruned
      (reduce (fn [{:keys [tx-err] :as acc} res]
@@ -244,17 +244,9 @@
               :pruned []}
              results))))
 
-(defn- tx-results
-  "If there is a system-time - there was a transaction, so discard those results."
-  [{:keys [system-time]} the-result tx-type]
-  (if system-time
-    (map-indexed (partial display-tx-result tx-type) (prune-tx-results the-result))
-    (map-indexed (partial display-tx-result tx-type) the-result)))
-
 (defn- results [position]
   (let [tx-batches @(rf/subscribe [::tx-batch/id-batch-pairs])
         statements (second (get tx-batches position))
-        tx-type (rf/subscribe [:get-type])
         loading? (rf/subscribe [::run/loading?])
         show-results? (rf/subscribe [::run/show-results?])
         results-or-failure (rf/subscribe [::run/results-or-failure])]
@@ -268,25 +260,25 @@
          (let [{::run/keys [results failure response?]} @results-or-failure]
            (if failure
              [display-error failure position]
-             (let [the-result (get results position)]
-               (if (some tx-result-or-error? (map vector the-result))
-                 [spacer-header (count results)
-                  (tx-results statements the-result tx-type)]
-                 (cond
-                   (not response?) [spacer-header (count results)
-                                    initial-message]
-                   (empty? results) [spacer-header (count results)
-                                     no-results-message]
-                   (= [[[]]] the-result) [spacer-header (count results)
-                                          no-results-message]
-                   (every? #(= [[]] %) the-result) [spacer-header (count results)
-                                                    (empty-rows-message the-result)]
-                   :else
-                   (map-indexed (fn [idx sub-result]
-                                  ^{:key idx}
-                                  [spacer-header (count results)
-                                   [display-table sub-result tx-type position]])
-                                the-result)))))))])))
+             (let [prune-tx-results-fn (if (:system-time statements)
+                                         prune-tx-results
+                                         identity)
+                   the-result (prune-tx-results-fn (get results position))]
+               [spacer-header (count results)
+                (map-indexed
+                 (fn [idx {:keys [result error warnings]}]
+                   ^{:key idx}
+                   [:<>
+                    (cond
+                      (not response?) initial-message
+                      (seq error) [display-error error (str position "-" idx)]
+                      (= [[]] result) no-results-message
+                      (every? empty? result) (empty-rows-message result)
+                      (seq result) [display-table result (str position "-" idx)]
+                      :else no-results-message)
+                    (when (seq warnings)
+                      [display-warnings warnings])])
+                 the-result)]))))])))
 
 (defn- rm-stmt-header [id system-time position]
   [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}

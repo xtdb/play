@@ -13,11 +13,13 @@
 
 (defn map-results->rows
   [results]
-  (if (and (seq results)
-             (every? map? results))
-    (let [ks (keys (apply merge results))]
-      (into [(vec ks)]
-            (mapv (fn [row]
-                    (mapv #(get row %) ks))
-                  results)))
-    results))
+  [(if (seq (:error results))
+     results
+     {:result
+      (if (every? map? results)
+        (let [ks (keys (apply merge results))]
+          (into [(vec ks)]
+                (mapv (fn [row]
+                        (mapv #(get row %) ks))
+                      results)))
+        results)})])

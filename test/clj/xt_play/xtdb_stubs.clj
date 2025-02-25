@@ -21,7 +21,8 @@
   (execute! q)
   (or
    @resp
-   [{:xt/id 2, :col1 "bar", :col2 " baz"} {:xt/id 1, :col1 "foo"}]))
+   [[{:xt/id 2, :col1 "bar", :col2 " baz"} {:xt/id 1, :col1 "foo"}]
+    []]))
 
 (defn with-jdbc [f] (f nil))
 
@@ -29,7 +30,8 @@
   (log/info :stub-jdbc-execute! statement)
   (execute! statement)
   (or @resp
-      [{:xt/id 2 :col1 "bar" :col2 " baz"} {:xt/id 1 :col1 "foo" :col2 nil}]))
+      [[{:xt/id 2 :col1 "bar" :col2 " baz"} {:xt/id 1 :col1 "foo" :col2 nil}]
+       []]))
 
 (defn with-stubs [f]
   (with-redefs [xtdb/with-xtdb with-xtdb

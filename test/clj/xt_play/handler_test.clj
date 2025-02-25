@@ -88,10 +88,7 @@
                  :system-time "2024-12-01T00:00:00.000Z"}
                 {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
                  :system-time "2024-12-02T00:00:00.000Z"}
-                {:txs "SELECT * FROM docs" :query true}])
-              (update-in
-               [:parameters :body]
-               dissoc :query)))
+                {:txs "SELECT * FROM docs" :query true}])))
          (let [[begin tx1 _commit begin2 tx2 _commit2 query] @db]
            (t/is (= 7 (count @db)))
            (t/is (= ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-01T00:00:00.000Z')"]
@@ -178,23 +175,22 @@
     #(do
        (clean-db)
        (reset-resp)
-       (mock-resp [{:xt/id  1,
-                    :name  "An Electric Bicycle",
-                    :price  350,
-                    :xt/valid_from  #time/zoned-date-time "2024-01-10T00:00Z"}
-                   {:xt/id  1,
-                    :name  "An Electric Bicycle",
-                    :price  405,
-                    :xt/valid_from  #time/zoned-date-time "2024-01-05T00:00Z"}
-                   {:xt/id  1,
-                    :name  "An Electric Bicycle",
-                    :price  400,
-                    :xt/valid_from  #time/zoned-date-time "2024-01-01T00:00Z"}])
+       (mock-resp [[{:xt/id  1,
+                     :name  "An Electric Bicycle",
+                     :price  350,
+                     :xt/valid_from  #time/zoned-date-time "2024-01-10T00:00Z"}
+                    {:xt/id  1,
+                     :name  "An Electric Bicycle",
+                     :price  405,
+                     :xt/valid_from  #time/zoned-date-time "2024-01-05T00:00Z"}
+                    {:xt/id  1,
+                     :name  "An Electric Bicycle",
+                     :price  400,
+                     :xt/valid_from  #time/zoned-date-time "2024-01-01T00:00Z"}]])
 
        (let [response (h/docs-run-handler {:parameters {:body (json/read-str docs-json :key-fn keyword)}})
              txs (drop-last @db)
              query (last @db)]
-         (println "RES" response)
 
          (t/is (= [[[:sql "INSERT INTO product (_id, name, price) VALUES\n(1, 'An Electric Bicycle', 400)"]]
                    [[:sql "UPDATE product SET price = 405 WHERE _id = 1"]]
@@ -205,7 +201,7 @@
                   query))
 
          (t/testing "docs run returns map results"
-           (t/is (every? map? (:body response))))
+           (t/is (every? map? (:result (:body response)))))
 
          (t/testing "can handle \" strings from docs"
            (t/is (= {:status 200,

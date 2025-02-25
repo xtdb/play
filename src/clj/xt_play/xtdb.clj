@@ -33,7 +33,16 @@
 (defn jdbc-execute!
   [conn statement]
   (log/debug :jdbc-execute! statement)
-  (jdbc/execute! conn statement {:builder-fn xjdbc/builder-fn}))
+  (let [ps (jdbc/prepare conn statement)
+        result (jdbc/execute! ps {:builder-fn xjdbc/builder-fn})
+        warnings (.getWarnings ps)
+        w-msgs (atom [])]
+    (loop [w warnings]
+      (when w
+        (swap! w-msgs conj (ex-message w))
+        (recur (.getNextWarning w))))
+    (log/debug :jdbc-execute!-res [result @w-msgs])
+    [result @w-msgs]))
 
 (comment
   (with-open [node (xtn/start-node config/node-config)]
