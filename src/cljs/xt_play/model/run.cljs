@@ -59,6 +59,12 @@
    (dissoc db ::results ::failure ::response?)))
 
 (rf/reg-event-db
+ ::delete-result
+ (fn [db [_ position]]
+   (let [results-wo-deleted (vec (remove nil? (assoc (::results db) position nil)))]
+     (assoc db ::results results-wo-deleted))))
+
+(rf/reg-event-db
  ::hide-results!
  (fn [db _]
    (dissoc db ::show-results?)))

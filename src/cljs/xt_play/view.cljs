@@ -258,44 +258,43 @@
         loading? (rf/subscribe [::run/loading?])
         show-results? (rf/subscribe [::run/show-results?])
         results-or-failure (rf/subscribe [::run/results-or-failure])]
-    (fn []
-      (when (or @loading?
-                @show-results?)
-        ^{:key position}
-        [:div {:class (str half-window-col-class
-                           "grow min-h-32 border overflow-auto mx-4")}
-         (if @loading?
-           [spinner]
-           (let [{::run/keys [results failure response?]} @results-or-failure]
-             (println position results)
-             (if failure
-               [display-error failure position]
-               (let [the-result (get results position)]
-                 (if (some tx-result-or-error? (map vector the-result))
-                   [spacer-header (count results)
-                    (tx-results statements the-result tx-type)]
-                   (cond
-                     (not response?) [spacer-header (count results)
-                                      initial-message]
-                     (empty? results) [spacer-header (count results)
-                                       no-results-message]
-                     (= [[[]]] the-result) [spacer-header (count results)
-                                            no-results-message]
-                     (every? #(= [[]] %) the-result) [spacer-header (count results)
-                                                      (empty-rows-message the-result)]
-                     :else
-                     (map-indexed (fn [idx sub-result]
-                                    ^{:key idx}
-                                    [spacer-header (count results)
-                                     [display-table sub-result tx-type position]])
-                                  the-result)))))))]))))
+    (when (or @loading?
+              @show-results?)
+      ^{:key position}
+      [:div {:class (str half-window-col-class
+                         "grow min-h-32 border overflow-auto mx-4")}
+       (if @loading?
+         [spinner]
+         (let [{::run/keys [results failure response?]} @results-or-failure]
+           (if failure
+             [display-error failure position]
+             (let [the-result (get results position)]
+               (if (some tx-result-or-error? (map vector the-result))
+                 [spacer-header (count results)
+                  (tx-results statements the-result tx-type)]
+                 (cond
+                   (not response?) [spacer-header (count results)
+                                    initial-message]
+                   (empty? results) [spacer-header (count results)
+                                     no-results-message]
+                   (= [[[]]] the-result) [spacer-header (count results)
+                                          no-results-message]
+                   (every? #(= [[]] %) the-result) [spacer-header (count results)
+                                                    (empty-rows-message the-result)]
+                   :else
+                   (map-indexed (fn [idx sub-result]
+                                  ^{:key idx}
+                                  [spacer-header (count results)
+                                   [display-table sub-result tx-type position]])
+                                the-result)))))))])))
 
-(defn- rm-stmt-header [id system-time]
+(defn- rm-stmt-header [id system-time position]
   [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
    [:div {:class "w-full flex flex-row gap-2 justify-center items-center"}
     (when system-time (str system-time))]
    [:> XMarkIcon {:class icon-pointer
                   :on-click #(rf/dispatch [:fx [[:dispatch [::tx-batch/delete id]]
+                                                [:dispatch [::run/delete-result position]]
                                                 [:dispatch [:update-url]]]])}]])
 
 (defn- add-statement-button []
@@ -326,7 +325,7 @@
               [:div {:class (str half-window-col-class
                                  "mx-4 md:pr-4 grow min-h-0 lg:overflow-y-auto ")}
                (when (< 1 (count statements))
-                 [rm-stmt-header id system-time])
+                 [rm-stmt-header id system-time idx])
                [editor (merge
                         (editor-update-opts id txs ref)
                         {:class "md:flex-grow min-h-36 border"})]]
