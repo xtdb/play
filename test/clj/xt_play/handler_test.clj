@@ -175,18 +175,18 @@
     #(do
        (clean-db)
        (reset-resp)
-       (mock-resp [[{:xt/id  1,
-                     :name  "An Electric Bicycle",
-                     :price  350,
-                     :xt/valid_from  #time/zoned-date-time "2024-01-10T00:00Z"}
-                    {:xt/id  1,
-                     :name  "An Electric Bicycle",
-                     :price  405,
-                     :xt/valid_from  #time/zoned-date-time "2024-01-05T00:00Z"}
-                    {:xt/id  1,
-                     :name  "An Electric Bicycle",
-                     :price  400,
-                     :xt/valid_from  #time/zoned-date-time "2024-01-01T00:00Z"}]])
+       (mock-resp [{:xt/id  1,
+                    :name  "An Electric Bicycle",
+                    :price  350,
+                    :xt/valid_from  #time/zoned-date-time "2024-01-10T00:00Z"}
+                   {:xt/id  1,
+                    :name  "An Electric Bicycle",
+                    :price  405,
+                    :xt/valid_from  #time/zoned-date-time "2024-01-05T00:00Z"}
+                   {:xt/id  1,
+                    :name  "An Electric Bicycle",
+                    :price  400,
+                    :xt/valid_from  #time/zoned-date-time "2024-01-01T00:00Z"}])
 
        (let [response (h/docs-run-handler {:parameters {:body (json/read-str docs-json :key-fn keyword)}})
              txs (drop-last @db)
@@ -218,4 +218,5 @@
                        :name  "An Electric Bicycle",
                        :price  400,
                        :xt/valid_from  #time/zoned-date-time "2024-01-01T00:00Z"}]}
-                    response)))))))
+                    response))))
+       (reset-resp))))

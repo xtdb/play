@@ -174,4 +174,4 @@
                (mapv #(update % :txs util/read-edn) tx-batches))
       (let [res (run!-tx node "sql"
                          [{:txs (util/read-edn query) :query true}])]
-        (ffirst res)))))
+        (first res)))))
