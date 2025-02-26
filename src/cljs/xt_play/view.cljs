@@ -274,7 +274,10 @@
                     (cond
                       (not response?) initial-message
                       (seq error) [display-error error (str position "-" idx)]
-                      (= [[]] result) no-results-message
+                      (and (:query statements)
+                           (= [[]] result)) no-results-message
+                      (and (not (:query statements))
+                           (= [[]] result)) "Statement succeeded."
                       (every? empty? result) (empty-rows-message result)
                       (seq result) [display-table result (str position "-" idx)]
                       :else no-results-message)
