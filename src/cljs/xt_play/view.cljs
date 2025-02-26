@@ -227,8 +227,10 @@
                                 "md:max-w-[48vw] lg:max-w-[49vw] "))
 
 (defn- prune-tx-results [results]
-  (if (every? tx-result-or-error?
-              results)
+
+  (if (and (> (count results) 2)
+           (every? tx-result-or-error?
+                   results))
     (drop 1 (drop-last results))
     (:pruned
      (reduce (fn [{:keys [tx-err] :as acc} res]
