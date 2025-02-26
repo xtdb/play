@@ -17,23 +17,56 @@
           (str/includes? upper-st "PATCH")))))
 
 (defn split-sql [sql]
-  (loop [chars (seq sql) current [] statements [] in-string? false escape? false]
+  (loop [chars (seq sql)
+         current []
+         statements []
+         in-string? false
+         escape? false
+         in-comment? false] ;; this later becomes character that started the comment
     (if (empty? chars)
-      (conj statements (apply str current))
-      (let [c (first chars)
-            rest-chars (rest chars)]
+      ;; finished parsing - add last statement and remove empty ones
+      (->> (conj statements (apply str current))
+           (map str/trim)
+           (filter seq))
+      (let [c1 (first chars)
+            rest-chars (rest chars)
+            c2 (second chars)]
         (cond
-          (and (= c \') (not escape?))
-          (recur rest-chars (conj current c) statements (not in-string?) false)
+          ;; start -- comment
+          (and (not in-comment?) (= c1 \-) (= c2 \-))
+          (recur (rest rest-chars) current statements in-string? escape? \-)
 
-          (and in-string? (= c \\))
-          (recur rest-chars (conj current c) statements in-string? (not escape?))
+          ;; ignore till end of line
+          (and (= \- in-comment?) (not= c1 \newline))
+          (recur rest-chars current statements in-string? escape? \-)
 
-          (and (= c \;) (not in-string?))
-          (recur rest-chars [] (conj statements (apply str current)) in-string? false)
+          ;; end of -- comment
+          (and (= \- in-comment?) (= c1 \newline))
+          (recur rest-chars current statements in-string? escape? false)
+
+          ;; start /* comment */
+          (and (not in-comment?) (= c1 \/) (= c2 \*))
+          (recur (rest (rest rest-chars)) current statements in-string? escape? \*)
+
+          ;; end of /* comment */
+          (and in-comment? (and (= c1 \*) (= c2 \/)))
+          (recur (rest rest-chars) current statements in-string? escape? false)
+
+          ;; ignore till end of /* comment */
+          (= \* in-comment?)
+          (recur rest-chars current statements in-string? escape? \*)
+
+          (and (= c1 \') (not escape?) (not in-comment?))
+          (recur rest-chars (conj current c1) statements (not in-string?) false in-comment?)
+
+          (and in-string? (= c1 \\))
+          (recur rest-chars (conj current c1) statements in-string? (not escape?) in-comment?)
+
+          (and (= c1 \;) (not in-string?) (not in-comment?))
+          (recur rest-chars [] (conj statements (apply str current)) in-string? false in-comment?)
 
           :else
-          (recur rest-chars (conj current c) statements in-string? false))))))
+          (recur rest-chars (conj current c1) statements in-string? false in-comment?))))))
 
 (defn- encode-txs [tx-type query? txs]
   (case (keyword tx-type)

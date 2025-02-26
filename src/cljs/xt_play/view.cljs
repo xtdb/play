@@ -277,7 +277,8 @@
                       (and (:query statements)
                            (= [[]] result)) no-results-message
                       (and (not (:query statements))
-                           (= [[]] result)) "Statement succeeded."
+                           (= [[]] result)) [:div {:class "pl-2 pt-2"}
+                                             "Statement succeeded."]
                       (every? empty? result) (empty-rows-message result)
                       (seq result) [display-table result (str position "-" idx)]
                       :else no-results-message)
