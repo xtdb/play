@@ -184,7 +184,7 @@
 
 (defn- header [tx-type tx-refs]
   [:header {:class "max-md:sticky top-0 z-50 bg-gray-200 py-2 px-4"}
-   [:div {:class "container mx-auto flex flex-col md:flex-row items-center gap-1"}
+   [:div {:class "container mx-auto flex flex-col sm:flex-row items-center gap-1"}
     [:div {:class "w-full flex flex-row items-center gap-4"}
      logo
      [:span {:class "text-sm text-gray-400"}
@@ -222,7 +222,7 @@
                      :visibility "hidden"}]])
    children])
 
-(def half-window-col-class (str "md:mx-0 flex-1 flex flex-col "
+(def half-window-col-class (str "sm:mx-0 flex-1 flex flex-col "
                                 ;; stop editor expanding beyond the viewport
                                 "md:max-w-[48vw] lg:max-w-[49vw] "))
 
@@ -256,7 +256,7 @@
               @show-results?)
       ^{:key position}
       [:div {:class (str half-window-col-class
-                         "grow min-h-32 border overflow-auto mx-4")}
+                         "grow h-auto max-h-none mt-5 sm:mt-0 border overflow-visible ")}
        (if @loading?
          [spinner]
          (let [{::run/keys [results failure response?]} @results-or-failure]
@@ -296,7 +296,7 @@
                                                 [:dispatch [:update-url]]]])}]])
 
 (defn- add-statement-button []
-  [:div {:class "flex flex-row"}
+  [:div {:class "flex flex-col sm:flex-row"}
    [:div {:class "flex-col flex-1"}
     [:div {:class "flex flex-row justify-center"}
      [:button {:class "w-10 h-10 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 rounded-full"
@@ -305,9 +305,9 @@
                                              [:dispatch [::run/hide-results!]]]])}
       "+"]]]
    [:div {:class "flex-col flex-1"
-          :visibility "hidden"}]])
+            :visibility "hidden"}]])
 
-(defn- statements [{:keys [editor tx-refs]} tx-type]
+(defn- statements [{:keys [editor tx-refs]}]
   (reset! tx-refs [])
   (let [statements @(rf/subscribe [::tx-batch/id-batch-pairs])]
     [:<>
@@ -319,19 +319,18 @@
             (swap! tx-refs conj ref)
             ^{:key id}
             [:<>
-             [:div {:class "flex flex-col md:flex-row gap-y-16"}
+             [:div {:class "flex flex-col sm:flex-row gap-y-4"}
               [:div {:class (str half-window-col-class
-                                 "mx-4 md:pr-4 grow min-h-0 lg:overflow-y-auto ")}
+                                 " grow min-h-0 sm:overflow-y-auto sm:pr-4 ")}
                (when (< 1 (count statements))
                  [rm-stmt-header id system-time idx])
                [editor (merge
                         (editor-update-opts id txs ref)
-                        {:class "md:flex-grow min-h-36 border"})]]
+                        {:class "md:flex-grow min-h-full sm:min-h-32 border"})]]
 
               [results idx]]]))
         statements))]
-     (when (#{:sql-v2 :xtql} tx-type)
-       [add-statement-button])]))
+     [add-statement-button]]))
 
 (def ^:private mobile-gap [:hr {:class "md:hidden"}])
 
@@ -339,13 +338,13 @@
   (let [tx-type (rf/subscribe [:get-type])
         tx-refs (atom [])]
     (fn []
-      [:div {:class "flex flex-col h-dvh"}
+      [:div {:class "flex flex-col h-dvh w-screen"}
        [header @tx-type tx-refs]
        ;; overflow-hidden fixes a bug where if an editor would have content that
        ;; goes off the screen the whole page would scroll.
-       [:div {:class "py-2 px-4 flex-grow  h-full flex flex-row md:flex-row gap-2 "}
+       [:div {:class "py-2 sm:px-4 flex-grow h-full flex flex-row gap-2 "}
         (let [ctx {:editor (editor/default-editor @tx-type)
                    :tx-refs tx-refs}]
-          [:div {:class "flex flex-col gap-2 w-full"}
-           [statements ctx @tx-type]
+          [:div {:class "flex flex-col gap-8 w-full"}
+           [statements ctx]
            mobile-gap])]])))
