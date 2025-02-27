@@ -256,7 +256,7 @@
               @show-results?)
       ^{:key position}
       [:div {:class (str half-window-col-class
-                         "grow h-auto max-h-none mt-5 sm:mt-0 border overflow-visible ")}
+                         "grow h-auto max-h-none border overflow-visible ")}
        (if @loading?
          [spinner]
          (let [{::run/keys [results failure response?]} @results-or-failure]
@@ -319,20 +319,20 @@
             (swap! tx-refs conj ref)
             ^{:key id}
             [:<>
-             [:div {:class "flex flex-col sm:flex-row gap-y-4"}
+             [:div {:class "flex flex-col sm:flex-row gap-y-2"}
               [:div {:class (str half-window-col-class
-                                 " grow min-h-0 sm:overflow-y-auto sm:pr-4 ")}
+                                 " grow h-fit overflow-visible sm:overflow-y-auto sm:pr-4 ")}
                (when (< 1 (count statements))
                  [rm-stmt-header id system-time idx])
                [editor (merge
                         (editor-update-opts id txs ref)
-                        {:class "md:flex-grow min-h-full sm:min-h-32 border"})]]
+                        {:class "md:flex-grow h-fit sm:min-h-32 border"})]]
 
               [results idx]]]))
         statements))]
      [add-statement-button]]))
 
-(def ^:private mobile-gap [:hr {:class "md:hidden"}])
+(def ^:private mobile-gap [:hr {:class "sm:hidden"}])
 
 (defn app []
   (let [tx-type (rf/subscribe [:get-type])
@@ -340,11 +340,9 @@
     (fn []
       [:div {:class "flex flex-col h-dvh w-screen"}
        [header @tx-type tx-refs]
-       ;; overflow-hidden fixes a bug where if an editor would have content that
-       ;; goes off the screen the whole page would scroll.
        [:div {:class "py-2 sm:px-4 flex-grow h-full flex flex-row gap-2 "}
         (let [ctx {:editor (editor/default-editor @tx-type)
                    :tx-refs tx-refs}]
-          [:div {:class "flex flex-col gap-8 w-full"}
+          [:div {:class "flex flex-col gap-4 sm:gap-2 w-full"}
            [statements ctx]
            mobile-gap])]])))
