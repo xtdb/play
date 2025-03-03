@@ -67,28 +67,6 @@
      (->> warnings
           (map-indexed #(do ^{:key (str "span-" %1)} [:<> [:span %2] [:br]])))]]])
 
-(defn- print-array [arr]
-  (-> (reduce (fn [acc v]
-                (str acc
-                     (cond
-                       (vector? v) (print-array v)
-                       (map? v) (-> (reduce-kv
-                                     (fn [acc k val]
-                                       (str acc
-                                            (if (keyword? k) (name k) k)
-                                            ": "
-                                            (if (vector? val)
-                                              (print-array val)
-                                              val) ", "))
-                                     "{"
-                                     v)
-                                    (str/replace #", $" "}"))
-                       :else v)
-                     ", "))
-              "["
-              arr)
-      (str/replace #", $" "]")))
-
 (defn- display-table [results position]
   (let [tx-type (rf/subscribe [:get-type])]
     (when results
@@ -114,8 +92,9 @@
                    (pr-str value)]
                 ;; default
                   [hl/code {:language "json"}
-                   (if (vector? value)
-                     (print-array value)
+                   (if (or (vector? value)
+                           (map? value))
+                     (js/JSON.stringify (clj->js value) nil 1)
                      (str value))])]))]))]])))
 
 (defn- title [& body]
