@@ -11,7 +11,7 @@
                                  (tx-batch/batch-list db))}]
     {:method :post
      :uri "/beta-db-run"
-     :params params
+     :params [params]
      :timeout timeout-millis ;; timeout must be greater than the API cold start response time
      :format (ajax/json-request-format)
      :response-format (ajax/json-response-format {:keywords? true})
