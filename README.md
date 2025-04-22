@@ -29,13 +29,13 @@ npx shadow-cljs watch app
 Now shadow-cljs will be watching for changes recompiling.
 See the [shadow-cljs docs](https://shadow-cljs.github.io/docs/UsersGuide.html) for more.
 
-### Clojure repl
+### Clojure REPL
 
-Just start your repl in the ordinary way (or be sneaky like me and use the repl from shadow-cljs (not recommended)).
+Start the REPL separately using `clj -M:dev:repl` (or similar). Make sure nothing else is conflicting with port 5432 (used for connecting to ephemeral XTDB instances over the pgwire protocol).
 
 Then you can start the server by running `(go)` in the `user` namespace.
 
-You should than be able to browse a dev build at [http://localhost:8000](http://localhost:8000).
+You should than be able to browse the cljs dev build at [http://localhost:8000](http://localhost:8000).
 
 ### Emacs development
 
