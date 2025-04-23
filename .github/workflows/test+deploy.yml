@@ -3,7 +3,7 @@ name: Run Unit Tests and Deploy if Successful
 on:
   push:
     branches:
-      - main
+      - live
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
