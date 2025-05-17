@@ -43,7 +43,7 @@ Resources:
       Environment:
         Variables:
           JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true'
-          XTDB_VERSION: '2.0.0-beta7'
+          XTDB_VERSION: '2.0.0-beta8'
 
   SSMPlayLambdaName:
     Type: AWS::SSM::Parameter

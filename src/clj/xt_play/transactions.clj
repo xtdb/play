@@ -3,8 +3,7 @@
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
-            [xt-play.xtdb :as xtdb]
-            [xtdb.next.jdbc :as xt-jdbc]))
+            [xt-play.xtdb :as xtdb]))
 
 (defn- dml? [statement]
   (when statement
@@ -115,8 +114,7 @@
     v))
 
 (defn- xform-result [result]
-  (let [columns (mapv xt-jdbc/->sql-col
-                      (keys (first result)))]
+  (let [columns (keys (first result))]
     (into [columns]
           (mapv
            (fn [row]
