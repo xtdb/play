@@ -1,7 +1,7 @@
 (ns xt-play.server
   (:require [clojure.tools.logging :as log]
             [integrant.core :as ig]
-            [ring.adapter.jetty :as jetty]
+            [ring.adapter.jetty9 :as jetty]
             [xt-play.config :as config]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]))

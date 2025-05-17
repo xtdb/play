@@ -16,7 +16,7 @@ Resources:
   PlayLambda:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Runtime: java21
+      Runtime: java24
       Role: '{{resolve:ssm:xt-play_lambda-execution-role-arn}}'
       Handler: xt_play.lambda
       CodeUri:
@@ -43,7 +43,7 @@ Resources:
       Environment:
         Variables:
           JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true'
-          XTDB_VERSION: '2.0.0'
+          XTDB_VERSION: '2.x-SNAPSHOT'
 
   SSMPlayLambdaName:
     Type: AWS::SSM::Parameter

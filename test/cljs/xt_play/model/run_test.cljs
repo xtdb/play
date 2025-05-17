@@ -5,7 +5,7 @@
    [xt-play.model.tx-batch :as batch]))
 
 (def app-db
-  {:version "2.0.0",
+  {:version "2.x-SNAPSHOT",
    :type :sql,
    :query "SELECT *, _valid_from FROM docs",
    ::batch/list [::batch/tx5],

@@ -13,8 +13,7 @@
             [ring.middleware.params :as params]
             [ring.util.response :as response]
             [xt-play.transactions :as txs]
-            [xt-play.view :as view])
-  (:import (xtdb.error Anomaly)))
+            [xt-play.view :as view]))
 
 (s/def ::system-time (s/nilable string?))
 (s/def ::txs string?)
@@ -40,8 +39,7 @@
   (exception/create-exception-middleware
    (merge
     exception/default-handlers
-    {; Not sure if this is the right error to catch here
-     Anomaly handle-client-error
+    {xtdb.error.Incorrect handle-client-error
      clojure.lang.ExceptionInfo handle-client-error
      ::exception/default handle-other-error})))
 
