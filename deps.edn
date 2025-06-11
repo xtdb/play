@@ -4,8 +4,8 @@
  {org.clojure/clojure {:mvn/version "1.12.0"}
 
   ;; XTDB dependencies
-  com.xtdb/xtdb-api {:mvn/version "2.0.0-beta9"}
-  com.xtdb/xtdb-core {:mvn/version "2.0.0-beta9"
+  com.xtdb/xtdb-api {:mvn/version "2.0.0"}
+  com.xtdb/xtdb-core {:mvn/version "2.0.0"
                       :exclusions [info.sunng/ring-jetty9-adapter
                                    info.sunng/ring-jetty9-adapter-http2]}
 
