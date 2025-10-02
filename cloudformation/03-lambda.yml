@@ -16,7 +16,7 @@ Resources:
   PlayLambda:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Runtime: java24
+      Runtime: java21
       Role: '{{resolve:ssm:xt-play_lambda-execution-role-arn}}'
       Handler: xt_play.lambda
       CodeUri:
