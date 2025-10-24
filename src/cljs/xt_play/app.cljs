@@ -10,7 +10,6 @@
             [goog.dom :as gdom]
             [xt-play.components.highlight :as hl]
             [xt-play.model.query-params :as query-params]
-            [xt-play.model.run :as run]
             [xt-play.model.tx-batch :as tx-batch]
             [xt-play.view :as view]))
 

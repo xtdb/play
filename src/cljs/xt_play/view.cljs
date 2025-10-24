@@ -114,7 +114,7 @@
 ;; Event to update DB from editors accessible via tx-refs stored in app state
 (rf/reg-event-fx
  ::update-and-run
- (fn [{:keys [db]} [_ tx-refs]]
+ (fn [_ [_ tx-refs]]
    {:fx (concat
           ;; Update all editors first
          (for [tx-ref @tx-refs]

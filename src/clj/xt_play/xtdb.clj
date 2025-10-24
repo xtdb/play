@@ -4,8 +4,7 @@
             [next.jdbc.result-set :as rs]
             [xt-play.config :as config]
             [xtdb.api :as xt]
-            [xtdb.node :as xtn]
-            [xtdb.next.jdbc :as xjdbc])
+            [xtdb.node :as xtn])
   (:import [java.time OffsetDateTime]))
 
 ;; Preserve OffsetDateTime values instead of converting to Instant (UTC)
