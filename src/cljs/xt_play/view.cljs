@@ -88,7 +88,7 @@
             (doall
              (for [[ii value] (map-indexed vector row)]
                ^{:key (str "row-" i " col-" ii)}
-               [:td {:class "text-left p-4"}
+               [:td {:class "text-left p-4 whitespace-pre-wrap break-all font-mono max-w-[30ch]"}
                 (case @tx-type
                   :xtql
                   [hl/code {:language "clojure"}
