@@ -17,7 +17,7 @@
 (glogi-console/install!)
 
 (log/set-levels
- {:glogi/root   :info})    ;; Set a root logger level, this will be inherited by all loggers
+ {:glogi/root :info}) ;; Set a root logger level, this will be inherited by all loggers
 
 ;; 'my.app.thing :trace  ;; Some namespaces you might want detailed logging
 
@@ -62,7 +62,8 @@
     (when (and (or (.-ctrlKey evt)
                    (.-metaKey evt))
                (= "Enter" key))
-      (rf/dispatch [::run/run]))))
+      ;; Dispatch the update-and-run event which updates editors then runs
+      (rf/dispatch [::view/update-and-run view/global-tx-refs]))))
 
 (defn ^:dev/after-load start! []
   (log/info :start "start")
