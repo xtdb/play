@@ -125,7 +125,14 @@
   (if (:query batch)
     batch
     (if (and (string? (:txs batch))
-             (re-matches #"(?i)^\s*(\(->)?\s*\((from|unify|rel).+" (:txs batch)))
+             ;; First check it's NOT a DML statement
+             (not (re-find #"(?i)^\s*(INSERT|UPDATE|DELETE|ERASE|MERGE|PATCH)\b" (:txs batch)))
+             (or
+              ;; Detect XTQL queries
+              (re-matches #"(?i)^\s*(\(->)?\s*\((from|unify|rel).+" (:txs batch))
+              ;; Detect SQL SELECT queries (including CTEs)
+              ;; Use (?s) DOTALL flag so . matches newlines for multiline queries
+              (re-matches #"(?is)^\s*(WITH\s+.+\s+)?SELECT\s+.+" (:txs batch))))
       (assoc batch :query true)
       batch)))
 
@@ -187,10 +194,28 @@
   use, will run transaction batches and queries sequentially,
   returning the last query response in column format."
   [{:keys [tx-batches tx-type]}]
-  (xtdb/with-xtdb
-    (fn [node]
-      (if (#{"sql-v2" "sql"} tx-type)
-        (run!-with-jdbc-conn tx-batches)
+  (if (#{"sql-v2" "sql"} tx-type)
+    ;; For SQL: separate queries from DML, run within single node lifecycle
+    (xtdb/with-xtdb
+      (fn [node]
+        ;; Give the PgWire server a moment to start accepting connections
+        (Thread/sleep 100)
+        (let [batches-with-detection (mapv detect-xtql-queries tx-batches)
+              query-batches (filter :query batches-with-detection)
+              dml-batches (remove :query batches-with-detection)
+              ;; Run DML via JDBC (connects to the node's PgWire server)
+              dml-results (when (seq dml-batches)
+                            (run!-with-jdbc-conn dml-batches))
+              ;; Run queries via direct API (preserves timestamp offsets)
+              query-results (when (seq query-batches)
+                              (let [res (run!-tx node tx-type query-batches)]
+                                (log/debug "run!!" res)
+                                (mapv util/map-results->rows res)))]
+          ;; Combine results, DML first then queries
+          (vec (concat (or dml-results []) (or query-results []))))))
+    ;; For non-SQL (XTQL), use direct API
+    (xtdb/with-xtdb
+      (fn [node]
         (let [res (run!-tx node tx-type tx-batches)]
           (log/debug "run!!" res)
           (mapv util/map-results->rows res))))))
