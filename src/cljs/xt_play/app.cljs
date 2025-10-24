@@ -61,6 +61,9 @@
     (when (and (or (.-ctrlKey evt)
                    (.-metaKey evt))
                (= "Enter" key))
+      ;; Prevent default behavior (inserting newline) and stop propagation
+      (.preventDefault evt)
+      (.stopPropagation evt)
       ;; Dispatch the update-and-run event which updates editors then runs
       (rf/dispatch [::view/update-and-run view/global-tx-refs]))))
 
@@ -68,7 +71,8 @@
   (log/info :start "start")
   (hl/setup)
   (rf/dispatch-sync [::init js/xt_version])
-  (events/listen js/document EventType/KEYDOWN handle-keypress)
+  ;; Use capture phase (true) to intercept Ctrl+Enter before CodeMirror handles it
+  (events/listen js/document EventType/KEYDOWN handle-keypress true)
   (.render root (r/as-element [view/app])))
 
 (defn ^:export init []
