@@ -2,7 +2,6 @@
   (:require [clojure.edn :as edn]
             [clojure.test :as t]
             [clojure.data.json :as json]
-            [next.jdbc :as jdbc]
             #_:clj-kondo/ignore
             [time-literals.data-readers :as time]
             [xt-play.handler :as h]))
@@ -19,22 +18,34 @@
              (h/run-handler (t-file "xtql-example-request")))))
 
   (t/testing "sql example returns expected results"
-    (t/is (= {:status 200,
-              :body
-              [[[[:next.jdbc/update-count] [0]] [[:next.jdbc/update-count] [0]]]
-               [[[:xt/id :col1 :col2]
-                 [2 "bar" " baz"]
-                 [1 "foo" nil]]]]}
-             (h/run-handler (t-file "sql-example-request")))))
+    (let [result (h/run-handler (t-file "sql-example-request"))]
+      ;; Check status and structure, but allow tx-id and system-time to vary
+      (t/is (= 200 (:status result)))
+      (t/is (= 2 (count (:body result))))
+      ;; First batch has 2 DML statements
+      (t/is (= 2 (count (first (:body result)))))
+      ;; Each DML returns tx-id and system-time
+      (t/is (= ["tx-id" "system-time"] (ffirst (first (:body result)))))
+      ;; Second batch is the query result
+      (t/is (= [[:xt/id :col1 :col2]
+                [2 "bar" " baz"]
+                [1 "foo" nil]]
+               (first (second (:body result)))))))
 
   (t/testing "beta sql example returns expected results"
-    (t/is (= {:status 200,
-              :body
-              [[[[:next.jdbc/update-count] [0]] [[:next.jdbc/update-count] [0]]]
-               [[[:xt/id :col1 :col2]
-                 [2 "bar" " baz"]
-                 [1 "foo" nil]]]]}
-             (h/run-handler (t-file "beta-sql-example-request"))))))
+    (let [result (h/run-handler (t-file "beta-sql-example-request"))]
+      ;; Check status and structure, but allow tx-id and system-time to vary
+      (t/is (= 200 (:status result)))
+      (t/is (= 2 (count (:body result))))
+      ;; First batch has 2 DML statements
+      (t/is (= 2 (count (first (:body result)))))
+      ;; Each DML returns tx-id and system-time
+      (t/is (= ["tx-id" "system-time"] (ffirst (first (:body result)))))
+      ;; Second batch is the query result
+      (t/is (= [[:xt/id :col1 :col2]
+                [2 "bar" " baz"]
+                [1 "foo" nil]]
+               (first (second (:body result))))))))
 
 (t/deftest run-handler-multi-transactions-test
   (t/testing "multiple transactions in xtql"
@@ -53,98 +64,133 @@
                 {:txs "(from :docs [xt/id foo])", :query true}])))))
 
   (t/testing "multiple transacions on sql"
-    (t/is (= {:status 200,
-              :body
-              [[[[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]]
-               [[[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]]
-               [[[:xt/id :col1 :col2 :xt/valid-from]
-                 [2 "bar" " baz" #inst "2024-12-02T00:00:00.000000000-00:00"]
-                 [1 "foo" nil #inst "2024-12-01T00:00:00.000000000-00:00"]]]]}
-             (h/run-handler
-              (-> (t-file "sql-example-request")
-                  (assoc-in
-                   [:parameters :body :tx-batches]
-                   [{:txs "INSERT INTO docs (_id, col1) VALUES (1, 'foo');",
-                     :system-time "2024-12-01T00:00:00.000Z"}
-                    {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
-                     :system-time "2024-12-02T00:00:00.000Z"}
-                    {:txs "SELECT *, _valid_from FROM docs" :query true}]))))))
+    (let [result (h/run-handler
+                  (-> (t-file "sql-example-request")
+                      (assoc-in
+                       [:parameters :body :tx-batches]
+                       [{:txs "INSERT INTO docs (_id, col1) VALUES (1, 'foo');",
+                         :system-time "2024-12-01T00:00:00.000Z"}
+                        {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
+                         :system-time "2024-12-02T00:00:00.000Z"}
+                        {:txs "SELECT *, _valid_from FROM docs" :query true}])))]
+      (t/is (= 200 (:status result)))
+      (t/is (= 3 (count (:body result))))
+      ;; First two batches are DML - extract :result from each
+      (t/is (= ["tx-id" "system-time"] (first (:result (first (first (:body result)))))))
+      (t/is (= ["tx-id" "system-time"] (first (:result (first (second (:body result)))))))
+      ;; Third batch is the query - also has :result wrapper
+      (let [query-result (:result (first (nth (:body result) 2)))]
+        (t/is (= [["_id" "col1" "col2" "_valid_from"]
+                  [2 "bar" " baz" "TIMESTAMP '2024-12-02T00:00Z[UTC]'"]
+                  [1 "foo" nil "TIMESTAMP '2024-12-01T00:00Z[UTC]'"]]
+                 query-result))))))
 
-  (t/testing "beta sql can run multiple txs"
-    (t/is (= {:status 200,
-              :body
-              [[[[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]]
-               [[[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]
-                [[:next.jdbc/update-count] [0]]]
-               [[[:xt/id :col1 :col2 :xt/valid-from]
-                 [2 "bar" " baz" #inst "2024-12-02T00:00:00.000000000-00:00"]
-                 [1 "foo" nil #inst "2024-12-01T00:00:00.000000000-00:00"]]]]}
-             (h/run-handler
-              (-> (t-file "beta-sql-example-request")
-                  (assoc-in
-                   [:parameters :body :tx-batches]
-                   [{:txs "INSERT INTO docs (_id, col1) VALUES (1, 'foo');",
-                     :system-time "2024-12-01T00:00:00.000Z"}
-                    {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
-                     :system-time "2024-12-02T00:00:00.000Z"}
-                    {:txs "SELECT *, _valid_from FROM docs" :query true}])))))))
+(t/testing "beta sql can run multiple txs"
+  (let [result (h/run-handler
+                (-> (t-file "beta-sql-example-request")
+                    (assoc-in
+                     [:parameters :body :tx-batches]
+                     [{:txs "INSERT INTO docs (_id, col1) VALUES (1, 'foo');",
+                       :system-time "2024-12-01T00:00:00.000Z"}
+                      {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
+                       :system-time "2024-12-02T00:00:00.000Z"}
+                      {:txs "SELECT *, _valid_from FROM docs" :query true}])))]
+    (t/is (= 200 (:status result)))
+    (t/is (= 3 (count (:body result))))
+      ;; First two batches are DML - extract :result from each
+    (t/is (= ["tx-id" "system-time"] (first (:result (first (first (:body result)))))))
+    (t/is (= ["tx-id" "system-time"] (first (:result (first (second (:body result)))))))
+      ;; Third batch is the query - also has :result wrapper
+    (let [query-result (:result (first (nth (:body result) 2)))]
+      (t/is (= [["_id" "col1" "col2" "_valid_from"]
+                [2 "bar" " baz" "TIMESTAMP '2024-12-02T00:00Z[UTC]'"]
+                [1 "foo" nil "TIMESTAMP '2024-12-01T00:00Z[UTC]'"]]
+               query-result)))))
 
 (t/deftest beta-sql-run-features
   (t/testing "Column order is maintained"
-    (t/is (= {:status 200,
-              :body [[[[:next.jdbc/update-count] [0]]]
-                     [[[:e :g :c :j :h :b :d :f :xt/id :a]
-                       [6 8 4 10 9 3 5 7 1 2]]]]}
-             (h/run-handler
-              (assoc-in
-               (t-file "beta-sql-example-request")
-               [:parameters :body :tx-batches]
-               [{:txs "INSERT INTO docs RECORDS {_id: 1, a: 2, b: 3, c: 4, d: 5, e: 6, f: 7, g: 8, h: 9, j: 10}"
-                 :system-time nil}
-                {:txs "SELECT * FROM docs" :query true}])))))
+    (let [result (h/run-handler
+                  (assoc-in
+                   (t-file "beta-sql-example-request")
+                   [:parameters :body :tx-batches]
+                   [{:txs "INSERT INTO docs RECORDS {_id: 1, a: 2, b: 3, c: 4, d: 5, e: 6, f: 7, g: 8, h: 9, j: 10}"
+                     :system-time nil}
+                    {:txs "SELECT * FROM docs" :query true}]))]
+      (t/is (= 200 (:status result)))
+      (t/is (= 2 (count (:body result))))
+      ;; First batch is DML
+      (t/is (= ["tx-id" "system-time"] (ffirst (first (:body result)))))
+      ;; Second batch is the query with column order maintained
+      (t/is (= [[:e :g :c :j :h :b :d :f :xt/id :a]
+                [6 8 4 10 9 3 5 7 1 2]]
+               (first (second (:body result))))))))
 
-  (t/testing "execute payload is not mutated"
-    (let [txs (atom [])]
-      (with-redefs [jdbc/execute! (fn [_conn statement & _args]
-                                    (swap! txs conj statement))]
-        (h/run-handler (t-file "beta-sql-example-request"))
-        (t/is
-         (= [["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-             ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
-             ["SELECT * FROM docs"]]
-            @txs)))))
+(t/deftest begin-commit-with-system-time
+  (t/testing "BEGIN with SYSTEM_TIME override groups statements into single transaction"
+    (let [result (h/run-handler
+                  {:parameters
+                   {:body
+                    {:tx-type "sql-v2",
+                     :tx-batches [{:txs "BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-01-15T10:00:00.000Z');
+                                         INSERT INTO products (_id, name, price) VALUES (1, 'Widget', 100);
+                                         INSERT INTO products (_id, name, price) VALUES (2, 'Gadget', 200);
+                                         COMMIT;"}]}}})]
+      (t/is (= 200 (:status result)))
+      ;; Should get one transaction result (all statements grouped together)
+      (t/is (= 1 (count (:body result))))
+      ;; The result should show tx-id and system-time
+      (let [tx-result (first (first (:body result)))]
+        (t/is (contains? tx-result :result))
+        (t/is (= ["tx-id" "system-time"] (first (:result tx-result))))
+        ;; Verify system time was applied (should contain the timestamp we specified)
+        (t/is (clojure.string/includes? (str (second (:result tx-result))) "2024-01-15")))))
 
-  (t/testing "xt submit-tx sql payload is reformatted"
-    (let [txs (atom [])]
-      (with-redefs [jdbc/execute! (fn [_node tx & _args]
-                                    (swap! txs conj tx))]
-        (h/run-handler (t-file "sql-example-request"))
-        (t/is
-         (= [["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-             ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
-             ["SELECT * FROM docs"]]
-            @txs)))))
+  (t/testing "Multiple BEGIN/COMMIT blocks create separate transactions"
+    (let [result (h/run-handler
+                  {:parameters
+                   {:body
+                    {:tx-type "sql-v2",
+                     :tx-batches [{:txs "BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-01-01');
+                                         INSERT INTO orders (_id, product) VALUES (1, 'A');
+                                         COMMIT;
+                                         BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-01-02');
+                                         INSERT INTO orders (_id, product) VALUES (2, 'B');
+                                         COMMIT;
+                                         SELECT * FROM orders;"}]}}})]
+      (t/is (= 200 (:status result)))
+      ;; Should get 3 results: tx1, tx2, query
+      (t/is (= 3 (count (first (:body result)))))
+      ;; First two should be transaction results
+      (t/is (= ["tx-id" "system-time"] (first (:result (first (first (:body result)))))))
+      (t/is (= ["tx-id" "system-time"] (first (:result (second (first (:body result)))))))
+      ;; Third should be query result
+      (let [query-result (:result (nth (first (:body result)) 2))]
+        (t/is (= ["_id" "product"] (first query-result)))
+        (t/is (= 2 (count (rest query-result)))))))
 
-  (t/testing "erroneous statement returns error in v2"
-    (t/is
-     (= {:status 200
-         :body [[[[:message :exception :data]
-                  ["ERROR: Error preparing statement: + not applicable to types tstz-range and interval"
-                   org.postgresql.util.PSQLException
-                   nil]]]]}
-        (h/run-handler
-         {:parameters
-          {:body
-           {:tx-type "sql-v2",
-            :tx-batches [{:txs "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"
-                          :query true}]}}})))))
+  (t/testing "Statements without BEGIN/COMMIT still work"
+    (let [result (h/run-handler
+                  {:parameters
+                   {:body
+                    {:tx-type "sql-v2",
+                     :tx-batches [{:txs "INSERT INTO simple (_id) VALUES (99);
+                                         SELECT * FROM simple;"}]}}})]
+      (t/is (= 200 (:status result)))
+      ;; Should get 2 results: one tx, one query
+      (t/is (= 2 (count (first (:body result))))))))
+
+(t/testing "erroneous statement returns error in v2"
+  (let [result (h/run-handler
+                {:parameters
+                 {:body
+                  {:tx-type "sql-v2",
+                   :tx-batches [{:txs "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"
+                                 :query true}]}}})]
+    (t/is (= 200 (:status result)))
+      ;; Check that we got an error response - error is first element of first batch
+    (let [first-batch (first (:body result))
+          first-item (first first-batch)]
+      (t/is (contains? first-item :error)))))
 
 (t/deftest sql-says-carol-is-red-test
   (t/testing "XTDB docs example for sql https://docs.xtdb.com/quickstart/sql-overview.html"
@@ -185,18 +231,17 @@
 
   (t/testing "Bob still likes fishing - don't determine columns based on the first row"
     (t/is (= {:status 200,
-             :body
-             [[:_id :favorite_color :info :likes :name]
-              [2 "red" nil nil "carol"]
-              [9 nil nil ["fishing" 3.14 {:nested "data"}] "bob"]]}
+              :body
+              [[:_id :favorite_color :info :likes :name]
+               [2 "red" nil nil "carol"]
+               [9 nil nil ["fishing" 3.14 {:nested "data"}] "bob"]]}
              (h/run-handler
-              (->  (t-file "sql-multi-transaction")
-                   (assoc-in [:parameters :body :query] "SELECT * FROM people")
-                   (assoc-in [:parameters :body :tx-type] "sql-v2")))))))
+              (-> (t-file "sql-multi-transaction")
+                  (assoc-in [:parameters :body :query] "SELECT * FROM people")
+                  (assoc-in [:parameters :body :tx-type] "sql-v2")))))))
 
 (def docs-json
- "{\"tx-batches\":[{\"txs\":\"[[:sql \\\"INSERT INTO product (_id, name, price) VALUES\\\\n(1, 'An Electric Bicycle', 400)\\\"]]\",\"system-time\":\"2024-01-01\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 405 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-05\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 350 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-10\"}],\"query\":\"\\\"SELECT *, _valid_from\\\\nFROM product\\\\nFOR VALID_TIME ALL -- i.e. \\\\\\\"show me all versions\\\\\\\"\\\\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \\\\\\\"...as observed at month end\\\\\\\"\\\"\"}"
-)
+  "{\"tx-batches\":[{\"txs\":\"[[:sql \\\"INSERT INTO product (_id, name, price) VALUES\\\\n(1, 'An Electric Bicycle', 400)\\\"]]\",\"system-time\":\"2024-01-01\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 405 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-05\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 350 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-10\"}],\"query\":\"\\\"SELECT *, _valid_from\\\\nFROM product\\\\nFOR VALID_TIME ALL -- i.e. \\\\\\\"show me all versions\\\\\\\"\\\\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \\\\\\\"...as observed at month end\\\\\\\"\\\"\"}")
 
 (t/deftest docs-run
   (let [response (h/docs-run-handler {:parameters {:body (json/read-str docs-json :key-fn keyword)}})]

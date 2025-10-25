@@ -1,5 +1,6 @@
 (ns xt-play.util
-  #?(:clj (:require [clojure.edn :as edn])))
+  (:require [clojure.string]
+            #?(:clj [clojure.edn :as edn])))
 
 #?(:clj
    (def xt-version

@@ -68,7 +68,9 @@
   :test
   {:extra-paths ["test/clj"]
    :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
-   :main-opts ["-m" "kaocha.runner"]}
+   :main-opts ["-m" "kaocha.runner"]
+   :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
+              "-Dio.netty.tryReflectionSetAccessible=true"]}
 
   :build {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.8.4" :git/sha "8c3cd69"}}
           :ns-default build}}

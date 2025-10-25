@@ -37,26 +37,25 @@
          (h/run-handler (t-file "sql-example-request"))
          (let [[tx1 tx2 query] @db]
            (t/is (= 3 (count @db)))
-           (t/is (= ["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-                    tx1))
-           (t/is (= ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
-                    tx2))
+           ;; DML now uses xt/execute-tx with [:sql statement] format
+           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]]
+                    (:tx-ops tx1)))
+           (t/is (= [[:sql "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]
+                    (:tx-ops tx2)))
+           ;; Queries use xt/q with raw SQL strings
            (t/is (= "SELECT * FROM docs"
-                    query))
-           (t/is (not (str/includes? tx1 ";")))))
+                    query))))
 
        (t/testing "beta sql example sends expected payload to xtdb"
          (clean-db)
          (h/run-handler (t-file "beta-sql-example-request"))
          (let [[tx1 tx2 query] @db]
            (t/is (= 3 (count @db)))
-           (t/is (= ["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-                    tx1))
-           (t/is (= ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
-                    tx2))
-           (t/is (= "SELECT * FROM docs"
-                    query))
-           (t/is (not (str/includes? tx1 ";"))))))))
+           ;; DML now uses xt/execute-tx with [:sql statement] format
+           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]] (:tx-ops tx1)))
+           (t/is (= [[:sql "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]] (:tx-ops tx2)))
+           ;; Queries use xt/q with raw SQL strings
+           (t/is (= "SELECT * FROM docs" query)))))))
 
 (t/deftest run-handler-multi-transactions-test
   (with-stubs
@@ -88,16 +87,18 @@
                 {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
                  :system-time "2024-12-02T00:00:00.000Z"}
                 {:txs "SELECT * FROM docs" :query true}])))
-         (let [[begin tx1 _commit begin2 tx2 _commit2 query] @db]
-           (t/is (= 7 (count @db)))
-           (t/is (= ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-01T00:00:00.000Z')"]
-                    begin))
-           (t/is (= ["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-                    tx1))
-           (t/is (= ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-02T00:00:00.000Z')"]
-                    begin2))
-           (t/is (= ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
-                    tx2))
+         ;; BEGIN/COMMIT are filtered out and used for grouping - only DML/queries are sent
+         (let [[tx1 tx2 query] @db]
+           (t/is (= 3 (count @db)))
+           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]]
+                    (:tx-ops tx1)))
+           ;; Verify system time from batch-level :system-time is applied
+           (t/is (= #inst "2024-12-01T00:00:00.000-00:00"
+                    (:system-time (:opts tx1))))
+           (t/is (= [[:sql "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]
+                    (:tx-ops tx2)))
+           (t/is (= #inst "2024-12-02T00:00:00.000-00:00"
+                    (:system-time (:opts tx2))))
            (t/is (= "SELECT * FROM docs"
                     query))))
 
@@ -112,18 +113,85 @@
                 {:txs "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'};",
                  :system-time "2024-12-02T00:00:00.000Z"}
                 {:txs "SELECT *, _valid_from FROM docs" :query true}])))
+         ;; BEGIN/COMMIT are filtered out and used for grouping - only DML/queries are sent
+         (let [[tx1 tx2 query] @db]
+           (t/is (= 3 (count @db)))
+           (t/is (= [[:sql "INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]]
+                    (:tx-ops tx1)))
+           ;; Verify system time from batch-level :system-time is applied
+           (t/is (= #inst "2024-12-01T00:00:00.000-00:00"
+                    (:system-time (:opts tx1))))
+           (t/is (= [[:sql "INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]]
+                    (:tx-ops tx2)))
+           (t/is (= #inst "2024-12-02T00:00:00.000-00:00"
+                    (:system-time (:opts tx2))))
+           (t/is (= "SELECT *, _valid_from FROM docs"
+                    query)))))))
 
-         (t/is (= 7 (count @db)))
-         ;; Note: SELECT queries now go through direct API (xtdb/query) and are not wrapped in vectors
-         ;; while DML statements go through JDBC (jdbc-execute!) and are wrapped
-         (t/is (= [["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-01T00:00:00.000Z')"]
-                   ["INSERT INTO docs (_id, col1) VALUES (1, 'foo')"]
-                   ["COMMIT"]
-                   ["BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-12-02T00:00:00.000Z')"]
-                   ["INSERT INTO docs RECORDS {_id: 2, col1: 'bar', col2:' baz'}"]
-                   ["COMMIT"]
-                   "SELECT *, _valid_from FROM docs"]
-                  @db))))))
+(t/deftest begin-commit-transaction-grouping-test
+  (with-stubs
+    #(do
+       (t/testing "BEGIN/COMMIT groups statements and extracts system time"
+         (clean-db)
+         (h/run-handler
+          {:parameters
+           {:body
+            {:tx-type "sql-v2",
+             :tx-batches [{:txs "BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-01-15T10:00:00.000Z');
+                                 INSERT INTO products (_id, name) VALUES (1, 'Widget');
+                                 INSERT INTO products (_id, name) VALUES (2, 'Gadget');
+                                 COMMIT;"}]}}})
+         ;; Should get a single transaction with both INSERT statements
+         (let [[tx] @db]
+           (t/is (= 1 (count @db)))
+           ;; Both INSERTs should be in one transaction (BEGIN/COMMIT filtered out)
+           (t/is (= [[:sql "INSERT INTO products (_id, name) VALUES (1, 'Widget')"]
+                     [:sql "INSERT INTO products (_id, name) VALUES (2, 'Gadget')"]]
+                    (:tx-ops tx)))
+           ;; System time from BEGIN should be applied
+           (t/is (= #inst "2024-01-15T10:00:00.000-00:00"
+                    (:system-time (:opts tx))))))
+
+       (t/testing "Multiple BEGIN/COMMIT blocks create separate transactions"
+         (clean-db)
+         (h/run-handler
+          {:parameters
+           {:body
+            {:tx-type "sql-v2",
+             :tx-batches [{:txs "BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-01-01');
+                                 INSERT INTO orders (_id) VALUES (1);
+                                 COMMIT;
+                                 BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '2024-01-02');
+                                 INSERT INTO orders (_id) VALUES (2);
+                                 COMMIT;"}]}}})
+         ;; Should get two separate transactions
+         (let [[tx1 tx2] @db]
+           (t/is (= 2 (count @db)))
+           (t/is (= [[:sql "INSERT INTO orders (_id) VALUES (1)"]]
+                    (:tx-ops tx1)))
+           (t/is (= [[:sql "INSERT INTO orders (_id) VALUES (2)"]]
+                    (:tx-ops tx2)))
+           ;; Verify system times from each BEGIN
+           (t/is (= #inst "2024-01-01T00:00:00.000-00:00"
+                    (:system-time (:opts tx1))))
+           (t/is (= #inst "2024-01-02T00:00:00.000-00:00"
+                    (:system-time (:opts tx2))))))
+
+       (t/testing "Statements without BEGIN/COMMIT are treated individually"
+         (clean-db)
+         (h/run-handler
+          {:parameters
+           {:body
+            {:tx-type "sql-v2",
+             :tx-batches [{:txs "INSERT INTO simple (_id) VALUES (1);
+                                 INSERT INTO simple (_id) VALUES (2);"}]}}})
+         ;; Without BEGIN/COMMIT, each statement is separate
+         (let [[tx1 tx2] @db]
+           (t/is (= 2 (count @db)))
+           (t/is (= [[:sql "INSERT INTO simple (_id) VALUES (1)"]]
+                    (:tx-ops tx1)))
+           (t/is (= [[:sql "INSERT INTO simple (_id) VALUES (2)"]]
+                    (:tx-ops tx2))))))))
 
 ;; mocking here really stuffs it up now that TX responses are also returned
 #_(t/deftest do-not-drop-columns

@@ -16,6 +16,12 @@
   (log/info :stub-submit-tx txs opts)
   (execute! txs))
 
+(defn execute-tx! [_node tx-ops opts]
+  (log/info :stub-execute-tx tx-ops opts)
+  ;; Record both tx-ops and opts so tests can verify system-time
+  (execute! {:tx-ops tx-ops :opts opts})
+  {:tx-id 0 :system-time (or (:system-time opts) #inst "2024-01-01T00:00:00.000-00:00")})
+
 (defn query [_node q]
   (log/info :stub-query q)
   (execute! q)
@@ -37,6 +43,7 @@
   (with-redefs [xtdb/with-xtdb with-xtdb
                 xtdb/with-jdbc with-jdbc
                 xtdb/submit! submit!
+                xtdb/execute-tx! execute-tx!
                 xtdb/query query
                 xtdb/jdbc-execute! jdbc-execute!]
     (f)))
