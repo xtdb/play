@@ -14,6 +14,9 @@
             [xt-play.model.run :as run]
             [xt-play.model.tx-batch :as tx-batch]))
 
+;; Global atom to hold editor refs, accessible from keyboard handlers
+(defonce global-tx-refs (atom []))
+
 ;; Todo
 ;; - pull out components to own ns
 
@@ -107,6 +110,21 @@
       (if (empty? value)
         (rf/dispatch [::tx-batch/delete (:id @tx-ref)])
         (rf/dispatch [::tx-batch/assoc (:id @tx-ref) :txs (get-value tx-ref)])))))
+
+;; Event to update DB from editors accessible via tx-refs stored in app state
+(rf/reg-event-fx
+ ::update-and-run
+ (fn [{:keys [db]} [_ tx-refs]]
+   {:fx (concat
+          ;; Update all editors first
+         (for [tx-ref @tx-refs]
+           (let [value (get-value tx-ref)
+                 id (:id @tx-ref)]
+             (if (empty? value)
+               [:dispatch [::tx-batch/delete id]]
+               [:dispatch [::tx-batch/assoc id :txs value]])))
+          ;; Then run
+         [[:dispatch [::run/run]]])}))
 
 (def icon-size "h-5 w-5")
 
@@ -284,7 +302,7 @@
                                              [:dispatch [::run/hide-results!]]]])}
       "+"]]]
    [:div {:class "flex-col flex-1"
-            :visibility "hidden"}]])
+          :visibility "hidden"}]])
 
 (defn- statements [{:keys [editor tx-refs]}]
   (reset! tx-refs [])
@@ -314,14 +332,13 @@
 (def ^:private mobile-gap [:hr {:class "sm:hidden"}])
 
 (defn app []
-  (let [tx-type (rf/subscribe [:get-type])
-        tx-refs (atom [])]
+  (let [tx-type (rf/subscribe [:get-type])]
     (fn []
       [:div {:class "flex flex-col h-dvh w-screen"}
-       [header @tx-type tx-refs]
+       [header @tx-type global-tx-refs]
        [:div {:class "py-2 sm:px-4 flex-grow h-full flex flex-row gap-2 "}
         (let [ctx {:editor (editor/default-editor @tx-type)
-                   :tx-refs tx-refs}]
+                   :tx-refs global-tx-refs}]
           [:div {:class "flex flex-col gap-4 sm:gap-2 w-full"}
            [statements ctx]
            mobile-gap])]])))
