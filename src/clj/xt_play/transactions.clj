@@ -3,7 +3,8 @@
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
-            [xt-play.xtdb :as xtdb]))
+            [xt-play.xtdb :as xtdb]
+            [xtdb.db-catalog :as db-catalog]))
 
 (defn- dml? [statement]
   (when statement
@@ -83,10 +84,19 @@
     (let [upper-st (str/trim (str/upper-case statement))]
       (str/starts-with? upper-st "COMMIT"))))
 
+(defn- pragma-statement? [statement]
+  "Detects PRAGMA statements and returns the pragma type if found."
+  (when statement
+    (let [upper-st (str/trim (str/upper-case statement))]
+      (when (str/starts-with? upper-st "PRAGMA")
+        (cond
+          (re-find #"PRAGMA\s+FINISH_BLOCK" upper-st) :finish-block
+          :else :unknown)))))
+
 (defn- group-into-transactions
   "Groups statements into transactions based on BEGIN/COMMIT boundaries.
-   Returns a sequence of maps with :statements (vector), :system-time (optional), and :query (boolean).
-   BEGIN and COMMIT statements themselves are filtered out and only used for grouping."
+   Returns a sequence of maps with :statements (vector), :system-time (optional), :pragma (optional), and :query (boolean).
+   BEGIN, COMMIT, and PRAGMA statements are filtered out and handled specially."
   [statements]
   (loop [remaining statements
          current-tx nil
@@ -98,7 +108,8 @@
         grouped)
       (let [stmt (first remaining)
             rest-stmts (rest remaining)
-            begin-info (parse-begin-statement stmt)]
+            begin-info (parse-begin-statement stmt)
+            pragma-type (pragma-statement? stmt)]
         (cond
           ;; Found a BEGIN - start a new transaction (don't include BEGIN in statements)
           begin-info
@@ -113,6 +124,13 @@
           (recur rest-stmts
                  nil
                  (if current-tx (conj grouped current-tx) grouped))
+
+          ;; Found a PRAGMA - treat as special standalone statement
+          pragma-type
+          (recur rest-stmts
+                 nil
+                 (conj (if current-tx (conj grouped current-tx) grouped)
+                       {:statements [] :pragma pragma-type}))
 
           ;; Regular statement - add to appropriate group
           :else
@@ -252,6 +270,7 @@
                               ;; Use system-time from BEGIN if present, otherwise from batch
                               :system-time (or (:system-time tx-group) system-time)
                               :original-idx idx
+                              :pragma (:pragma tx-group)
                               :multi-statement (> (count (:statements tx-group)) 1)})
                            tx-groups))
                    ;; Keep query batches as-is
@@ -263,24 +282,37 @@
 
               results
               (mapv
-               (fn [{:keys [txs system-time query multi-statement] :as batch}]
+               (fn [{:keys [txs system-time query multi-statement pragma] :as batch}]
                  (try
-                   (let [tx-opts (cond-> {}
-                                   system-time (assoc :system-time (format-system-time system-time)))]
-                     (if query
-                       ;; Use xt/q for queries
-                       (let [result (xtdb/query node (if (vector? txs) (first txs) txs))]
-                         (assoc batch :result (util/map-results->rows result)))
-                       ;; Use xt/execute-tx for DML - blocks until indexed
-                       (let [;; For multi-statement transactions, wrap all in [:sql ...] ops
-                             tx-ops (if multi-statement
-                                      (mapv (fn [stmt] [:sql stmt]) txs)
-                                      [[:sql (if (vector? txs) (first txs) txs)]])
-                             tx-result (xtdb/execute-tx! node tx-ops tx-opts)]
-                         ;; Format the tx result nicely
-                         (assoc batch :result [{:result [["tx-id" "system-time"]
-                                                         [(:tx-id tx-result)
-                                                          (str "TIMESTAMP '" (:system-time tx-result) "'")]]}]))))
+                   (cond
+                     ;; Handle PRAGMA statements
+                     pragma
+                     (case pragma
+                       :finish-block
+                       (do
+                         (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
+                         (assoc batch :result [{:result [["status"] ["Block finished"]]}]))
+                       ;; Unknown pragma
+                       (assoc batch :result [{:error {:message (str "Unknown PRAGMA: " pragma)}}]))
+
+                     ;; Handle queries
+                     query
+                     (let [result (xtdb/query node (if (vector? txs) (first txs) txs))]
+                       (assoc batch :result (util/map-results->rows result)))
+
+                     ;; Handle DML
+                     :else
+                     (let [tx-opts (cond-> {}
+                                     system-time (assoc :system-time (format-system-time system-time)))
+                           ;; For multi-statement transactions, wrap all in [:sql ...] ops
+                           tx-ops (if multi-statement
+                                    (mapv (fn [stmt] [:sql stmt]) txs)
+                                    [[:sql (if (vector? txs) (first txs) txs)]])
+                           tx-result (xtdb/execute-tx! node tx-ops tx-opts)]
+                       ;; Format the tx result nicely
+                       (assoc batch :result [{:result [["tx-id" "system-time"]
+                                                       [(:tx-id tx-result)
+                                                        (str "TIMESTAMP '" (:system-time tx-result) "'")]]}])))
                    (catch Throwable ex
                      (log/error "Exception while running transaction" (ex-message ex))
                      (assoc batch :result [{:error {:message (ex-message ex)
