@@ -3,7 +3,8 @@
             [clojure.instant :refer [read-instant-date]]
             [clojure.tools.logging :as log]
             [xt-play.util :as util]
-            [xt-play.xtdb :as xtdb]))
+            [xt-play.xtdb :as xtdb]
+            [xtdb.db-catalog :as db-catalog]))
 
 (defn- dml? [statement]
   (when statement
@@ -14,6 +15,16 @@
           (str/includes? upper-st "ERASE")
           (str/includes? upper-st "MERGE")
           (str/includes? upper-st "PATCH")))))
+
+(defn- pragma-statement?
+  "Detects PRAGMA statements and returns the pragma type if found."
+  [statement]
+  (when statement
+    (let [upper-st (str/trim (str/upper-case statement))]
+      (when (str/starts-with? upper-st "PRAGMA")
+        (cond
+          (re-find #"PRAGMA\s+FINISH_BLOCK" upper-st) :finish-block
+          :else :unknown)))))
 
 (defn split-sql [sql]
   (loop [chars (seq sql)
@@ -164,24 +175,38 @@
                       (mapv
                        (fn [statement]
                          (log/debug "beta executing statement:" statement)
-                         (when (str/includes? (str/upper-case (first statement)) "BEGIN")
-                           (reset! tx-in-progress? true))
-                         (try
-                           (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
-                                 res (xform-result rs)]
-                             (when (str/includes? (str/upper-case (first statement)) "COMMIT")
-                               (reset! tx-in-progress? false))
-                             (log/info :run-with-jdbc-conn-warnings warnings)
-                             {:result res
-                              :warnings warnings})
-                           (catch Exception ex
-                             (log/error "Exception while running statement" (ex-message ex))
-                             (when @tx-in-progress?
-                               (log/warn "Rolling back transaction")
-                               (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                             {:error {:message (ex-message ex)
-                                      :exception (.getClass ex)
-                                      :data (ex-data ex)}})))
+                         ;; Check if this is a PRAGMA statement
+                         (if-let [pragma (pragma-statement? (first statement))]
+                           ;; Handle PRAGMA statements
+                           (case pragma
+                             :finish-block
+                             (do
+                               (log/info "Executing PRAGMA finish_block")
+                               (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
+                               {:result [[:status] ["Block finished"]]
+                                :warnings []})
+                             ;; Unknown pragma
+                             {:error {:message (str "Unknown PRAGMA: " pragma)}})
+                           ;; Handle regular SQL statements
+                           (do
+                             (when (str/includes? (str/upper-case (first statement)) "BEGIN")
+                               (reset! tx-in-progress? true))
+                             (try
+                               (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
+                                     res (xform-result rs)]
+                                 (when (str/includes? (str/upper-case (first statement)) "COMMIT")
+                                   (reset! tx-in-progress? false))
+                                 (log/info :run-with-jdbc-conn-warnings warnings)
+                                 {:result res
+                                  :warnings warnings})
+                               (catch Exception ex
+                                 (log/error "Exception while running statement" (ex-message ex))
+                                 (when @tx-in-progress?
+                                   (log/warn "Rolling back transaction")
+                                   (xtdb/jdbc-execute! conn ["ROLLBACK"]))
+                                 {:error {:message (ex-message ex)
+                                          :exception (.getClass ex)
+                                          :data (ex-data ex)}})))))
                        txs))
                     (transform-statements tx-batches))]
       (log/debug "run!-with-jdbc-conn-res" res)
