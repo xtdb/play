@@ -253,7 +253,7 @@
               @show-results?)
       ^{:key position}
       [:div {:class (str half-window-col-class
-                         "grow h-auto max-h-none border overflow-visible ")}
+                         "grow h-auto max-h-none border overflow-x-auto ")}
        (if @loading?
          [spinner]
          (let [{::run/keys [results failure response?]} @results-or-failure]
@@ -293,7 +293,7 @@
                                                 [:dispatch [:update-url]]]])}]])
 
 (defn- add-statement-button []
-  [:div {:class "flex flex-col sm:flex-row"}
+  [:div {:class "flex flex-col sm:flex-row pb-4"}
    [:div {:class "flex-col flex-1"}
     [:div {:class "flex flex-row justify-center"}
      [:button {:class "w-10 h-10 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 rounded-full"
@@ -334,7 +334,7 @@
 (defn app []
   (let [tx-type (rf/subscribe [:get-type])]
     (fn []
-      [:div {:class "flex flex-col h-dvh w-screen"}
+      [:div {:class "flex flex-col h-dvh w-full"}
        [header @tx-type global-tx-refs]
        [:div {:class "py-2 sm:px-4 flex-grow h-full flex flex-row gap-2 "}
         (let [ctx {:editor (editor/default-editor @tx-type)
