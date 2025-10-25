@@ -26,10 +26,6 @@
        :data (ex-data error)}
       results)))
 
-(defn with-jdbc [f]
-  (with-open [conn (jdbc/get-connection config/db)]
-    (f conn)))
-
 (defn jdbc-execute!
   [conn statement]
   (log/debug :jdbc-execute! statement)
@@ -43,6 +39,12 @@
         (recur (.getNextWarning w))))
     (log/debug :jdbc-execute!-res [result @w-msgs])
     [result @w-msgs]))
+
+(defn get-node-connection
+  "Gets a JDBC connection from the XTDB node.
+  This wrapper exists to allow stubbing in tests."
+  [node]
+  (.getConnection node))
 
 (comment
   (with-open [node (xtn/start-node config/node-config)]

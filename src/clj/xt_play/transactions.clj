@@ -118,7 +118,13 @@
     (into [columns]
           (mapv
            (fn [row]
-             (mapv (comp util/transform-dates-to-sql parse-PG-array) (vals row)))
+             (mapv (fn [v]
+                     (let [parsed (parse-PG-array v)]
+                       ;; Log the type before transformation
+                       (when (not (string? parsed))
+                         (log/debug "JDBC value type:" (type parsed) "value:" parsed))
+                       (util/transform-dates-to-sql parsed)))
+                   (vals row)))
            result))))
 
 (defn- detect-xtql-queries [batch]
@@ -151,36 +157,35 @@
     (log/info "run!-tx-res" tx-results)
     tx-results))
 
-(defn- run!-with-jdbc-conn [tx-batches]
-  (xtdb/with-jdbc
-    (fn [conn]
-      (let [tx-in-progress? (atom false)
-            res (mapv (fn [txs]
-                        (mapv
-                         (fn [statement]
-                           (log/debug "beta executing statement:" statement)
-                           (when (str/includes? (str/upper-case (first statement)) "BEGIN")
-                             (reset! tx-in-progress? true))
-                           (try
-                             (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
-                                   res (xform-result rs)]
-                               (when (str/includes? (str/upper-case (first statement)) "COMMIT")
-                                 (reset! tx-in-progress? false))
-                               (log/info :run-with-jdbc-conn-warnings warnings)
-                               {:result res
-                                :warnings warnings})
-                             (catch Exception ex
-                               (log/error "Exception while running statement" (ex-message ex))
-                               (when @tx-in-progress?
-                                 (log/warn "Rolling back transaction")
-                                 (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                               {:error {:message (ex-message ex)
-                                        :exception (.getClass ex)
-                                        :data (ex-data ex)}})))
-                         txs))
-                      (transform-statements tx-batches))]
-        (log/debug "run!-with-jdbc-conn-res" res)
-        res))))
+(defn- run!-with-jdbc-conn [node tx-batches]
+  (with-open [conn (xtdb/get-node-connection node)]
+    (let [tx-in-progress? (atom false)
+          res (mapv (fn [txs]
+                      (mapv
+                       (fn [statement]
+                         (log/debug "beta executing statement:" statement)
+                         (when (str/includes? (str/upper-case (first statement)) "BEGIN")
+                           (reset! tx-in-progress? true))
+                         (try
+                           (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
+                                 res (xform-result rs)]
+                             (when (str/includes? (str/upper-case (first statement)) "COMMIT")
+                               (reset! tx-in-progress? false))
+                             (log/info :run-with-jdbc-conn-warnings warnings)
+                             {:result res
+                              :warnings warnings})
+                           (catch Exception ex
+                             (log/error "Exception while running statement" (ex-message ex))
+                             (when @tx-in-progress?
+                               (log/warn "Rolling back transaction")
+                               (xtdb/jdbc-execute! conn ["ROLLBACK"]))
+                             {:error {:message (ex-message ex)
+                                      :exception (.getClass ex)
+                                      :data (ex-data ex)}})))
+                       txs))
+                    (transform-statements tx-batches))]
+      (log/debug "run!-with-jdbc-conn-res" res)
+      res)))
 
 (defn run!!
   "Given transaction batches, a query and the type of transaction to
@@ -190,7 +195,7 @@
   (xtdb/with-xtdb
     (fn [node]
       (if (#{"sql-v2" "sql"} tx-type)
-        (run!-with-jdbc-conn tx-batches)
+        (run!-with-jdbc-conn node tx-batches)
         (let [res (run!-tx node tx-type tx-batches)]
           (log/debug "run!!" res)
           (mapv util/map-results->rows res))))))
