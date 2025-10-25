@@ -14,16 +14,36 @@
    (def read-edn
      (partial edn/read-string {:readers *data-readers*})))
 
+#?(:clj
+   (defn- format-interval
+     "Formats an xtdb.time.Interval with full nanosecond precision"
+     [interval]
+     (let [period (.getPeriod interval)
+           total-nanos (.getNanos interval)
+           period-str (.toString period)
+           hours (quot total-nanos 3600000000000)
+           remaining (- total-nanos (* hours 3600000000000))
+           minutes (quot remaining 60000000000)
+           remaining (- remaining (* minutes 60000000000))
+           seconds (quot remaining 1000000000)
+           nanos-part (- remaining (* seconds 1000000000))]
+       (if (zero? nanos-part)
+         (str period-str "T" hours "H" minutes "M" seconds "S")
+         (let [nanos-str (format "%09d" nanos-part)
+               ;; Remove trailing zeros but keep at least one digit after decimal
+               nanos-trimmed (str/replace nanos-str #"0+$" "")]
+           (str period-str "T" hours "H" minutes "M" seconds "." nanos-trimmed "S"))))))
+
 (defn sql-pr-str
   "Renders a value as SQL literal notation"
   [v]
   (cond
     (nil? v) "nil"
 
-    ;; Check if string is already a SQL literal (DATE '...', TIME '...', TIMESTAMP '...')
+;; Check if string is already a SQL literal (DATE '...', TIME '...', TIMESTAMP '...', INTERVAL '...')
     ;; If so, don't add extra quotes
     (and (string? v)
-         (re-matches #"(?i)(DATE|TIME|TIMESTAMP)\s+'.*'" v))
+         (re-matches #"(?i)(DATE|TIME|TIMESTAMP|INTERVAL)\s+'.*'" v))
     v
 
     ;; Regular strings - use SQL single quotes instead of Clojure double quotes
@@ -43,9 +63,27 @@
          (instance? java.time.LocalDateTime v) (str "TIMESTAMP '" v "'")
          (instance? java.time.OffsetDateTime v) (str "TIMESTAMP '" v "'")
          (instance? java.time.ZonedDateTime v) (str "TIMESTAMP '" v "'")
-         (instance? java.time.Instant v) (str "TIMESTAMP '" v "'")]
+         (instance? java.time.Instant v) (str "TIMESTAMP '" v "'")
+;; xtdb.time.Interval
+         (instance? xtdb.time.Interval v) (str "INTERVAL '" (format-interval v) "'")]
         :cljs
         [(instance? js/Date v) (str "TIMESTAMP '" (.toISOString v) "'")])
+
+;; Check if this is an interval map (ClojureScript receives intervals as maps)
+    ;; Intervals have :period (e.g. "P1D") and :duration (e.g. "PT1H1M1.111111S")
+    ;; We need to combine them, but remove the leading "P" from duration
+    (and (map? v)
+         (contains? v :months)
+         (contains? v :days)
+         (contains? v :nanos)
+         (contains? v :period))
+    (let [period (str (:period v))
+          duration (str (:duration v))]
+      (if (and duration (not= duration "PT0S") (not= duration ""))
+        ;; Combine period and duration (remove "PT" prefix from duration and append to period)
+        (str "INTERVAL '" period (subs duration 1) "'")
+        ;; Just period if no duration
+        (str "INTERVAL '" period "'")))
 
     (map? v) (str "{"
                   (str/join ", "
@@ -90,6 +128,8 @@
        (instance? java.time.OffsetDateTime v) (str "TIMESTAMP '" v "'")
        (instance? java.time.ZonedDateTime v) (str "TIMESTAMP '" v "'")
        (instance? java.time.Instant v) (str "TIMESTAMP '" v "'")
+;; xtdb.time.Interval
+       (instance? xtdb.time.Interval v) (str "INTERVAL '" (format-interval v) "'")
        ;; Recursive cases
        (map? v) (into {} (map (fn [[k v]] [k (transform-dates-to-sql v)]) v))
        (vector? v) (mapv transform-dates-to-sql v)
