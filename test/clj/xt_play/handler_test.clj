@@ -2,7 +2,6 @@
   (:require
    [clojure.data.json :as json]
    [clojure.edn :as edn]
-   [clojure.string :as str]
    [clojure.test :as t]
    [xt-play.handler :as h]
    #_:clj-kondo/ignore

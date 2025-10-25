@@ -6,16 +6,6 @@
             [xt-play.xtdb :as xtdb]
             [xtdb.db-catalog :as db-catalog]))
 
-(defn- dml? [statement]
-  (when statement
-    (let [upper-st (str/upper-case statement)]
-      (or (str/includes? upper-st "INSERT")
-          (str/includes? upper-st "UPDATE")
-          (str/includes? upper-st "DELETE")
-          (str/includes? upper-st "ERASE")
-          (str/includes? upper-st "MERGE")
-          (str/includes? upper-st "PATCH")))))
-
 (defn split-sql [sql]
   (loop [chars (seq sql)
          current []
@@ -84,8 +74,9 @@
     (let [upper-st (str/trim (str/upper-case statement))]
       (str/starts-with? upper-st "COMMIT"))))
 
-(defn- pragma-statement? [statement]
+(defn- pragma-statement?
   "Detects PRAGMA statements and returns the pragma type if found."
+  [statement]
   (when statement
     (let [upper-st (str/trim (str/upper-case statement))]
       (when (str/starts-with? upper-st "PRAGMA")
@@ -157,46 +148,8 @@
     ;;else
     txs))
 
-(defn- transform-statements
-  "Takes a batch of transactions and outputs the jdbc execution args to
-  be run sequentially. It groups statements by type and wraps DMLs in explicit transactions if system time specified."
-  [tx-batches]
-  (for [{:keys [txs system-time]} tx-batches]
-    (remove nil?
-            (when txs
-              (let [statements (split-sql txs)
-                    by-type (partition-by dml? statements)]
-                (mapcat
-                 (fn [grp]
-                   (let [dmls? (dml? (first grp))]
-                     (concat
-                      (when (and dmls? system-time)
-                        [[(format "BEGIN READ WRITE WITH (SYSTEM_TIME = TIMESTAMP '%s')" system-time)]])
-                      (vec
-                       (keep (fn [q] (when-not (empty? q)
-                                       [(str/trim q)]))
-                             grp))
-                      (when (and dmls? system-time)
-                        [["COMMIT"]]))))
-                 by-type))))))
-
 (defn format-system-time [s]
   (when s (read-instant-date s)))
-
-(defn- parse-PG-array [v]
-  (if
-   (instance? org.postgresql.jdbc.PgArray v)
-    (->> (.getArray v)
-         (into []))
-    v))
-
-(defn- xform-result [result]
-  (let [columns (keys (first result))]
-    (into [columns]
-          (mapv
-           (fn [row]
-             (mapv parse-PG-array (vals row)))
-           result))))
 
 (defn- detect-xtql-queries [batch]
   (if (:query batch)
