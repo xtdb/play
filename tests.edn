@@ -1,2 +1,2 @@
 #kaocha/v1
-{:tests [{:kaocha.filter/skip-meta [:integration]}]}
+ {:tests [{:kaocha.filter/skip-meta [:integration]}]}

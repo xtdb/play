@@ -26,3 +26,5 @@ jobs:
 
       - name: Test Clojure
         run: clojure -M:test
+        env:
+          JDK_JAVA_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true"
