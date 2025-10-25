@@ -3,7 +3,7 @@
 (def pgwire-port 5432)
 
 (def db
-  {:dbtype "postgresql"
+  {:dbtype "xtdb"
    :dbname "xtdb"
    :user "xtdb"
    :password "xtdb"

@@ -1,13 +1,12 @@
 {:paths ["src/clj" "src/cljc" "resources"]
 
  :deps
- {org.clojure/clojure {:mvn/version "1.12.0"}
+ {org.clojure/clojure {:mvn/version "1.12.1"}
 
   ;; XTDB dependencies
   com.xtdb/xtdb-api {:mvn/version "2.x-SNAPSHOT"}
   com.xtdb/xtdb-core {:mvn/version "2.x-SNAPSHOT"}
 
-  org.postgresql/postgresql {:mvn/version "42.7.4"}
   com.github.seancorfield/next.jdbc {:mvn/version "1.3.939"}
 
   com.widdindustries/time-literals {:mvn/version "0.1.10"}
@@ -34,24 +33,24 @@
  :aliases
  {:cljs
   {:extra-paths ["src/cljs"]
-   :extra-deps {thheller/shadow-cljs               {:mvn/version "2.26.2"}
-                com.google.protobuf/protobuf-java  {:mvn/version "3.25.5"}
-                re-frame/re-frame                  {:mvn/version "1.4.2"}
-                com.lambdaisland/glogi             {:mvn/version "1.3.169"}
-                applied-science/js-interop         {:mvn/version "0.4.2"}
-                cider/cider-nrepl                  {:mvn/version "0.55.3"}
-                refactor-nrepl/refactor-nrepl      {:mvn/version "3.9.0"}
+   :extra-deps {thheller/shadow-cljs {:mvn/version "2.26.2"}
+                com.google.protobuf/protobuf-java {:mvn/version "3.25.5"}
+                re-frame/re-frame {:mvn/version "1.4.2"}
+                com.lambdaisland/glogi {:mvn/version "1.3.169"}
+                applied-science/js-interop {:mvn/version "0.4.2"}
+                cider/cider-nrepl {:mvn/version "0.55.3"}
+                refactor-nrepl/refactor-nrepl {:mvn/version "3.9.0"}
                 io.github.nextjournal/clojure-mode {:git/sha "5d88847aecd253e047f36565e0455bfec7f4964d"}
-                day8.re-frame/http-fx              {:mvn/version "0.2.4"}}}
+                day8.re-frame/http-fx {:mvn/version "0.2.4"}}}
 
   :dev
   {:extra-paths ["dev"]
-   :extra-deps  {org.clojure/tools.namespace {:mvn/version "1.1.0"}
-                 com.lambdaisland/classpath  {:mvn/version "0.0.27"}
-                 hato/hato                   {:mvn/version "0.9.0"}
-                 cheshire/cheshire           {:mvn/version "5.12.0"}
-                 integrant/repl              {:mvn/version "0.3.3"}
-                 vvvvalvalval/scope-capture  {:mvn/version "0.3.3"}}
+   :extra-deps {org.clojure/tools.namespace {:mvn/version "1.1.0"}
+                com.lambdaisland/classpath {:mvn/version "0.0.27"}
+                hato/hato {:mvn/version "0.9.0"}
+                cheshire/cheshire {:mvn/version "5.12.0"}
+                integrant/repl {:mvn/version "0.3.3"}
+                vvvvalvalval/scope-capture {:mvn/version "0.3.3"}}
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
               "-Dio.netty.tryReflectionSetAccessible=true"]}
 
@@ -68,13 +67,13 @@
 
   :test
   {:extra-paths ["test/clj"]
-   :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+   :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
    :main-opts ["-m" "kaocha.runner"]}
 
   :build {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.8.4" :git/sha "8c3cd69"}}
           :ns-default build}}
 
  :mvn/repos
- {"central"         {:url "https://repo1.maven.org/maven2/"}
-  "clojars"         {:url "https://clojars.org/repo"}
+ {"central" {:url "https://repo1.maven.org/maven2/"}
+  "clojars" {:url "https://clojars.org/repo"}
   "sonatype-snapshots" {:url "https://central.sonatype.com/repository/maven-snapshots/"}}}

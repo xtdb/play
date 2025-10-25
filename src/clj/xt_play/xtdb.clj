@@ -35,6 +35,12 @@
        :data (ex-data error)}
       results)))
 
+(defn execute-tx! [node tx-ops opts]
+  (log/debug :execute-tx tx-ops opts)
+  (let [result (xt/execute-tx node tx-ops opts)]
+    (log/debug :execute-tx-result result)
+    result))
+
 (defn with-jdbc [f]
   (with-open [conn (jdbc/get-connection config/db)]
     (f conn)))

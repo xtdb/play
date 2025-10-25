@@ -96,8 +96,8 @@
 
 (def handler
   (ring/ring-handler
-    routes
-    (ring/routes (ring/create-default-handler))))
+   routes
+   (ring/routes (ring/create-default-handler))))
 
 (defmethod ig/init-key ::handler [_ _opts]
   handler)

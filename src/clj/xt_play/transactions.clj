@@ -132,7 +132,9 @@
               (re-matches #"(?i)^\s*(\(->)?\s*\((from|unify|rel).+" (:txs batch))
               ;; Detect SQL SELECT queries (including CTEs)
               ;; Use (?s) DOTALL flag so . matches newlines for multiline queries
-              (re-matches #"(?is)^\s*(WITH\s+.+\s+)?SELECT\s+.+" (:txs batch))))
+              (re-matches #"(?is)^\s*(WITH\s+.+\s+)?SELECT\s+.+" (:txs batch))
+              ;; Detect bare FROM queries (table expressions)
+              (re-matches #"(?is)^\s*FROM\s+.+" (:txs batch))))
       (assoc batch :query true)
       batch)))
 
@@ -195,24 +197,52 @@
   returning the last query response in column format."
   [{:keys [tx-batches tx-type]}]
   (if (#{"sql-v2" "sql"} tx-type)
-    ;; For SQL: separate queries from DML, run within single node lifecycle
+    ;; For SQL: use xtdb.api for both queries and DML
     (xtdb/with-xtdb
       (fn [node]
-        ;; Give the PgWire server a moment to start accepting connections
-        (Thread/sleep 100)
-        (let [batches-with-detection (mapv detect-xtql-queries tx-batches)
-              query-batches (filter :query batches-with-detection)
-              dml-batches (remove :query batches-with-detection)
-              ;; Run DML via JDBC (connects to the node's PgWire server)
-              dml-results (when (seq dml-batches)
-                            (run!-with-jdbc-conn dml-batches))
-              ;; Run queries via direct API (preserves timestamp offsets)
-              query-results (when (seq query-batches)
-                              (let [res (run!-tx node tx-type query-batches)]
-                                (log/debug "run!!" res)
-                                (mapv util/map-results->rows res)))]
-          ;; Combine results, DML first then queries
-          (vec (concat (or dml-results []) (or query-results []))))))
+        ;; First, expand each batch by splitting on semicolons and track original indices
+        (let [expanded-with-indices (mapcat
+                                     (fn [idx {:keys [txs system-time query] :as batch}]
+                                       (if (and (string? txs) (not query))
+                                          ;; Split multi-statement batches (only if not already marked as query)
+                                         (let [statements (split-sql txs)]
+                                           (mapv (fn [stmt]
+                                                   {:txs stmt
+                                                    :system-time system-time
+                                                    :original-idx idx})
+                                                 statements))
+                                          ;; Keep single batches as-is
+                                         [(assoc batch :original-idx idx)]))
+                                     (range)
+                                     tx-batches)
+              batches-with-detection (mapv detect-xtql-queries expanded-with-indices)
+              results (mapv
+                       (fn [{:keys [txs system-time query] :as batch}]
+                         (try
+                           (let [tx-opts (cond-> {}
+                                           system-time (assoc :system-time (format-system-time system-time)))]
+                             (if query
+                               ;; Use xt/q for queries
+                               (let [result (xtdb/query node txs)]
+                                 (assoc batch :result (util/map-results->rows result)))
+                               ;; Use xt/execute-tx for DML - blocks until indexed
+                               (let [tx-ops [[:sql txs]]
+                                     tx-result (xtdb/execute-tx! node tx-ops tx-opts)]
+                                 ;; Format the tx result nicely
+                                 (assoc batch :result [{:result [["tx-id" "system-time"]
+                                                                 [(:tx-id tx-result)
+                                                                  (str "TIMESTAMP '" (:system-time tx-result) "'")]]}]))))
+                           (catch Throwable ex
+                             (log/error "Exception while running transaction" (ex-message ex))
+                             (assoc batch :result {:error {:message (ex-message ex)
+                                                           :exception (.getClass ex)
+                                                           :data (ex-data ex)}}))))
+                       batches-with-detection)]
+          ;; Group results back by original batch index
+          (mapv (fn [idx]
+                  (let [batch-results (filter #(= idx (:original-idx %)) results)]
+                    (mapcat :result batch-results)))
+                (range (count tx-batches))))))
     ;; For non-SQL (XTQL), use direct API
     (xtdb/with-xtdb
       (fn [node]

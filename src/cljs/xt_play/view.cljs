@@ -12,7 +12,8 @@
             [xt-play.config :as config]
             [xt-play.model.client :as model]
             [xt-play.model.run :as run]
-            [xt-play.model.tx-batch :as tx-batch]))
+            [xt-play.model.tx-batch :as tx-batch]
+            [xt-play.util :as util]))
 
 ;; Global atom to hold editor refs, accessible from keyboard handlers
 (defonce global-tx-refs (atom []))
@@ -89,16 +90,12 @@
              (for [[ii value] (map-indexed vector row)]
                ^{:key (str "row-" i " col-" ii)}
                [:td {:class "text-left p-4 whitespace-pre-wrap break-all font-mono max-w-[30ch]"}
-                (case @tx-type
-                  :xtql
-                  [hl/code {:language "clojure"}
-                   (pr-str value)]
-                ;; default
-                  [hl/code {:language "json"}
-                   (if (or (vector? value)
-                           (map? value))
-                     (js/JSON.stringify (clj->js value) nil 1)
-                     (str value))])]))]))]])))
+                ;; Since we switched to xt/q for SELECT queries, nested maps are decoded automatically
+                ;; Use sql-pr-str for SQL to get SQL-looking literals (e.g., {a: "value"} instead of {:a "value"})
+                [hl/code {:language (if (= @tx-type :xtql) "clojure" "json")}
+                 (if (= @tx-type :xtql)
+                   (pr-str value)
+                   (util/sql-pr-str value))]]))]))]])))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]
@@ -267,7 +264,7 @@
                 (map-indexed
                  (fn [idx {:keys [result error warnings]}]
                    ^{:key idx}
-                   [:<>
+                   [:div {:class (when (pos? idx) "border-t-2 border-gray-100 mt-4 pt-4")}
                     (cond
                       (not response?) initial-message
                       (seq error) [display-error error (str position "-" idx)]
