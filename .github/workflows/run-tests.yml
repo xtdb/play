@@ -25,6 +25,4 @@ jobs:
           cli: 1.11.3.1463
 
       - name: Test Clojure
-        run: clojure -M:test
-        env:
-          JDK_JAVA_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true"
+        run: clojure -J--add-opens=java.base/java.nio=ALL-UNNAMED -J-Dio.netty.tryReflectionSetAccessible=true -M:test
