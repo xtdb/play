@@ -12,7 +12,8 @@
             [xt-play.config :as config]
             [xt-play.model.client :as model]
             [xt-play.model.run :as run]
-            [xt-play.model.tx-batch :as tx-batch]))
+            [xt-play.model.tx-batch :as tx-batch]
+            [xt-play.util :as util]))
 
 ;; Global atom to hold editor refs, accessible from keyboard handlers
 (defonce global-tx-refs (atom []))
@@ -89,16 +90,12 @@
              (for [[ii value] (map-indexed vector row)]
                ^{:key (str "row-" i " col-" ii)}
                [:td {:class "text-left p-4 whitespace-pre-wrap break-all font-mono max-w-[30ch]"}
-                (case @tx-type
-                  :xtql
+                (if (= @tx-type :xtql)
                   [hl/code {:language "clojure"}
                    (pr-str value)]
-                ;; default
+                  ;; Use sql-pr-str for SQL to get SQL-looking literals
                   [hl/code {:language "json"}
-                   (if (or (vector? value)
-                           (map? value))
-                     (js/JSON.stringify (clj->js value) nil 1)
-                     (str value))])]))]))]])))
+                   (util/sql-pr-str value)])]))]))]])))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]

@@ -118,7 +118,7 @@
     (into [columns]
           (mapv
            (fn [row]
-             (mapv parse-PG-array (vals row)))
+             (mapv (comp util/transform-dates-to-sql parse-PG-array) (vals row)))
            result))))
 
 (defn- detect-xtql-queries [batch]
