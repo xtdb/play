@@ -2,7 +2,7 @@
   (:require ["@heroicons/react/24/outline"
              :refer [BookmarkIcon CheckCircleIcon]]
             ["@heroicons/react/24/solid"
-             :refer [PlayIcon XMarkIcon BugAntIcon]]
+             :refer [PlayIcon XMarkIcon]]
             ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
@@ -180,23 +180,22 @@
   [:header {:class "max-md:sticky top-0 z-50 bg-gray-200 py-2 px-4"}
    [:div {:class "container mx-auto flex flex-col sm:flex-row items-center gap-1"}
     [:div {:class "w-full flex flex-row items-center gap-4"}
-     logo
-     [:span {:class "text-sm text-gray-400"}
-      @(rf/subscribe [:version])]
-     [:div {:class "flex flex-row"}
-      [:a {:class "text-sm text-gray-400"
-           :href "https://docs.xtdb.com/quickstart/sql-overview"}
-       "SQL Overview"]]
-     [:div {:class "flex flex-row text-sm text-gray-400"}
-      [:a {:class icon-pointer
-           :href "https://github.com/xtdb/xt-fiddle/issues/new"}
-       [:> BugAntIcon {:title "See a bug? Report it here!"}]]]]
+     logo]
     [:div {:class "max-md:hidden flex-grow"}]
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
      [language-dropdown tx-type]
      [:div {:class "md:hidden flex-grow"}]
      [copy-button tx-refs]
      [run-button tx-refs]]]])
+
+(defn- footer []
+  [:footer {:class "bg-gray-200 py-2 px-4 mt-auto"}
+   [:div {:class "container mx-auto flex flex-row items-center justify-center gap-4 text-sm text-gray-700"}
+    [:span @(rf/subscribe [:version])]
+    [:a {:href "https://docs.xtdb.com/quickstart/sql-overview"}
+     "Examples"]
+    [:a {:href "https://github.com/xtdb/xt-fiddle"}
+     "GitHub"]]])
 
 (def ^:private initial-message [:p {:class "text-gray-400"} "Enter a statement to see results"])
 (def ^:private no-results-message [:div {:class "pl-2 pt-2"}
@@ -331,11 +330,12 @@
 (defn app []
   (let [tx-type (rf/subscribe [:get-type])]
     (fn []
-      [:div {:class "flex flex-col h-dvh w-full"}
+      [:div {:class "flex flex-col min-h-screen w-full"}
        [header @tx-type global-tx-refs]
-       [:div {:class "py-2 sm:px-4 flex-grow h-full flex flex-row gap-2 "}
+       [:div {:class "py-2 sm:px-4 flex-grow flex flex-row gap-2"}
         (let [ctx {:editor (editor/default-editor @tx-type)
                    :tx-refs global-tx-refs}]
           [:div {:class "flex flex-col gap-4 sm:gap-2 w-full"}
            [statements ctx]
-           mobile-gap])]])))
+           mobile-gap])]
+       [footer]])))
