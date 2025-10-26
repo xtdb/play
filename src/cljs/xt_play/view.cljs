@@ -263,7 +263,9 @@
                 (map-indexed
                  (fn [idx {:keys [result error warnings]}]
                    ^{:key idx}
-                   [:div {:class (when (pos? idx) "border-t-2 border-gray-100 mt-4 pt-4")}
+                   [:div {:class (if (pos? idx)
+                                   "border-t-2 border-gray-100 py-2"
+                                   "py-2")}
                     (cond
                       (not response?) initial-message
                       (seq error) [display-error error (str position "-" idx)]
