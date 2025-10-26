@@ -171,44 +171,63 @@
 (defn- run!-with-jdbc-conn [node tx-batches]
   (with-open [conn (xtdb/get-node-connection node)]
     (let [tx-in-progress? (atom false)
-          res (mapv (fn [txs]
-                      (mapv
-                       (fn [statement]
-                         (log/debug "beta executing statement:" statement)
-                         ;; Check if this is a PRAGMA statement
-                         (if-let [pragma (pragma-statement? (first statement))]
-                           ;; Handle PRAGMA statements
-                           (case pragma
-                             :finish-block
-                             (do
-                               (log/info "Executing PRAGMA finish_block")
-                               (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
-                               {:result [[:status] ["Block finished"]]
-                                :warnings []})
-                             ;; Unknown pragma
-                             {:error {:message (str "Unknown PRAGMA: " pragma)}})
-                           ;; Handle regular SQL statements
-                           (do
-                             (when (str/includes? (str/upper-case (first statement)) "BEGIN")
-                               (reset! tx-in-progress? true))
-                             (try
-                               (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
-                                     res (xform-result rs)]
-                                 (when (str/includes? (str/upper-case (first statement)) "COMMIT")
-                                   (reset! tx-in-progress? false))
-                                 (log/info :run-with-jdbc-conn-warnings warnings)
-                                 {:result res
-                                  :warnings warnings})
-                               (catch Exception ex
-                                 (log/error "Exception while running statement" (ex-message ex))
-                                 (when @tx-in-progress?
-                                   (log/warn "Rolling back transaction")
-                                   (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                                 {:error {:message (ex-message ex)
-                                          :exception (.getClass ex)
-                                          :data (ex-data ex)}})))))
-                       txs))
-                    (transform-statements tx-batches))]
+          ;; Keep track of which batches have system-time
+          batches-with-system-time (set (keep-indexed
+                                          (fn [idx batch]
+                                            (when (:system-time batch) idx))
+                                          tx-batches))
+          transformed (transform-statements tx-batches)
+          res (map-indexed
+               (fn [batch-idx txs]
+                 (let [has-system-time? (contains? batches-with-system-time batch-idx)]
+                   (->> (mapv
+                         (fn [statement]
+                           (log/debug "beta executing statement:" statement)
+                           (let [upper-stmt (str/upper-case (first statement))
+                                 is-begin? (str/includes? upper-stmt "BEGIN")
+                                 is-commit? (str/includes? upper-stmt "COMMIT")
+                                 ;; Skip rendering BEGIN/COMMIT if they were auto-added for system-time
+                                 skip-result? (and has-system-time? (or is-begin? is-commit?))]
+                             ;; Check if this is a PRAGMA statement
+                             (if-let [pragma (pragma-statement? (first statement))]
+                               ;; Handle PRAGMA statements
+                               (case pragma
+                                 :finish-block
+                                 (do
+                                   (log/info "Executing PRAGMA finish_block")
+                                   (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
+                                   {:result [[:status] ["Block finished"]]
+                                    :warnings []})
+                                 ;; Unknown pragma
+                                 {:error {:message (str "Unknown PRAGMA: " pragma)}})
+                               ;; Handle regular SQL statements
+                               (do
+                                 (when is-begin?
+                                   (reset! tx-in-progress? true))
+                                 (try
+                                   (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
+                                         res (xform-result rs)]
+                                     (when is-commit?
+                                       (reset! tx-in-progress? false))
+                                     (log/info :run-with-jdbc-conn-warnings warnings)
+                                     (if skip-result?
+                                       nil  ;; Return nil for auto-added BEGIN/COMMIT
+                                       {:result res
+                                        :warnings warnings}))
+                                   (catch Exception ex
+                                     (log/error "Exception while running statement" (ex-message ex))
+                                     (when @tx-in-progress?
+                                       (log/warn "Rolling back transaction")
+                                       (xtdb/jdbc-execute! conn ["ROLLBACK"]))
+                                     {:error {:message (ex-message ex)
+                                              :exception (.getClass ex)
+                                              :data (ex-data ex)}}))))))
+                         txs)
+                        ;; Remove nils (filtered BEGIN/COMMIT results)
+                        (remove nil?)
+                        vec)))
+               transformed)
+          res (vec res)]
       (log/debug "run!-with-jdbc-conn-res" res)
       res)))
 
