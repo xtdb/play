@@ -6,7 +6,6 @@
 
 (def app-db
   {:version "2.x-SNAPSHOT",
-   :type :sql,
    :query "SELECT *, _valid_from FROM docs",
    ::batch/list [::batch/tx5],
    ::batch/id->batch
@@ -34,8 +33,7 @@
       (t/is (= {:method :post,
                 :uri "/beta-db-run",
                 :params
-                {:tx-type :sql,
-                 :query "SELECT *, _valid_from FROM docs",
+                {:query "SELECT *, _valid_from FROM docs",
                  :tx-batches
                  [{:system-time "2024-12-05T00:00:00.000Z",
                    :txs

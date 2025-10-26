@@ -45,11 +45,11 @@
 
 (rf/reg-event-db
  ::delete
-  (fn [db [_ id]]
-    (println "delete" id)
-    (-> db
-        (update ::list #(->> % (remove (fn [x] (= x id))) vec))
-        (update ::id->batch dissoc id))))
+ (fn [db [_ id]]
+   (println "delete" id)
+   (-> db
+       (update ::list #(->> % (remove (fn [x] (= x id))) vec))
+       (update ::id->batch dissoc id))))
 
 (rf/reg-event-db
  ::update
@@ -77,10 +77,10 @@
 
 (def blank {:txs "" :system-time nil})
 
-(defn default [tx-type]
+(defn default []
   {:system-time nil
-   :txs (config/default-transaction tx-type)})
+   :txs config/default-transaction})
 
-(defn default-query [tx-type]
+(defn default-query []
   {:query "true"
-   :txs (config/default-query tx-type)})
+   :txs config/default-query})

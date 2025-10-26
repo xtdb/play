@@ -5,9 +5,8 @@
 
 (def timeout-millis 30000)
 
-(defn- db-run-opts [{:keys [type] :as db}]
-  (let [params {:tx-type type
-                :tx-batches (map #(update % :system-time (fn [d] (when d (.toISOString d))))
+(defn- db-run-opts [db]
+  (let [params {:tx-batches (map #(update % :system-time (fn [d] (when d (.toISOString d))))
                                  (tx-batch/batch-list db))}]
     {:method :post
      :uri "/beta-db-run"
@@ -78,16 +77,16 @@
 
 (rf/reg-sub
  ::results?
-  :<- [::results-or-failure]
-  :-> boolean)
+ :<- [::results-or-failure]
+ :-> boolean)
 
 (rf/reg-sub
  ::loading?
-  :-> ::loading?)
+ :-> ::loading?)
 
 (rf/reg-sub
  ::show-results?
-  :-> ::show-results?)
+ :-> ::show-results?)
 
 (comment
   (require '[re-frame.db :as db])

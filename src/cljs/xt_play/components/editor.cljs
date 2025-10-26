@@ -5,8 +5,7 @@
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :as view :refer [EditorView lineNumbers]]
             ["@uiw/react-codemirror$default" :as CodeMirror]
-            [applied-science.js-interop :as j]
-            [nextjournal.clojure-mode :as cm-clj]))
+            [applied-science.js-interop :as j]))
 
 (def theme
   (.theme EditorView
@@ -37,17 +36,6 @@
 (defn js-concat [& colls]
   (apply array (apply concat colls)))
 
-(defonce clj-extensions
-  #js [theme
-       (history)
-       (view/drawSelection)
-       (syntaxHighlighting defaultHighlightStyle)
-       (foldGutter)
-       (lineNumbers)
-       (.. EditorState -allowMultipleSelections (of true))
-       cm-clj/default-extensions
-       (.of view/keymap (js-concat cm-clj/complete-keymap historyKeymap))])
-
 (def sql-extensions
   #js [theme
        (history)
@@ -76,14 +64,7 @@
                     :className "h-full"}
                    (select-keys opts [:on-blur :on-focus]))]])
 
-(defn clj-editor [opts]
-  [editor (merge opts {:extensions clj-extensions})])
-
 (defn sql-editor [opts]
   [editor (merge opts {:extensions sql-extensions})])
 
-(defn default-editor [tx-type]
-  (case tx-type
-    :xtql clj-editor
-    :sql sql-editor
-    sql-editor))
+(def default-editor sql-editor)

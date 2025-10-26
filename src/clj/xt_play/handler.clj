@@ -19,9 +19,9 @@
 (s/def ::txs string?)
 (s/def ::query (s/nilable string?))
 (s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs] :opt-un [::query])))
-(s/def ::tx-type #{"sql-v2" "xtql" "sql"})
+
 (s/def ::db-run (s/keys :req-un [::tx-batches ::query]))
-(s/def ::beta-db-run (s/keys :req-un [::tx-batches ::tx-type]))
+(s/def ::beta-db-run (s/keys :req-un [::tx-batches]))
 
 (defn- handle-client-error [ex _]
   {:status 400
@@ -96,8 +96,8 @@
 
 (def handler
   (ring/ring-handler
-    routes
-    (ring/routes (ring/create-default-handler))))
+   routes
+   (ring/routes (ring/create-default-handler))))
 
 (defmethod ig/init-key ::handler [_ _opts]
   handler)

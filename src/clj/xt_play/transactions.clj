@@ -173,9 +173,9 @@
     (let [tx-in-progress? (atom false)
           ;; Keep track of which batches have system-time
           batches-with-system-time (set (keep-indexed
-                                          (fn [idx batch]
-                                            (when (:system-time batch) idx))
-                                          tx-batches))
+                                         (fn [idx batch]
+                                           (when (:system-time batch) idx))
+                                         tx-batches))
           transformed (transform-statements tx-batches)
           res (map-indexed
                (fn [batch-idx txs]
@@ -211,7 +211,7 @@
                                        (reset! tx-in-progress? false))
                                      (log/info :run-with-jdbc-conn-warnings warnings)
                                      (if skip-result?
-                                       nil  ;; Return nil for auto-added BEGIN/COMMIT
+                                       nil ;; Return nil for auto-added BEGIN/COMMIT
                                        {:result res
                                         :warnings warnings}))
                                    (catch Exception ex
@@ -232,17 +232,12 @@
       res)))
 
 (defn run!!
-  "Given transaction batches, a query and the type of transaction to
-  use, will run transaction batches and queries sequentially,
-  returning the last query response in column format."
-  [{:keys [tx-batches tx-type]}]
+  "Given transaction batches, runs them sequentially via JDBC,
+  returning results in column format."
+  [{:keys [tx-batches]}]
   (xtdb/with-xtdb
     (fn [node]
-      (if (#{"sql-v2" "sql"} tx-type)
-        (run!-with-jdbc-conn node tx-batches)
-        (let [res (run!-tx node tx-type tx-batches)]
-          (log/debug "run!!" res)
-          (mapv util/map-results->rows res))))))
+      (run!-with-jdbc-conn node tx-batches))))
 
 (defn docs-run!!
   "Given transaction batches and a query from the docs, will return the query

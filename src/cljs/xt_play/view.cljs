@@ -6,11 +6,9 @@
             ["react-svg-spinners" :refer [SixDotsScale]]
             [clojure.string :as str]
             [re-frame.core :as rf]
-            [xt-play.components.dropdown :refer [dropdown]]
             [xt-play.components.editor :as editor]
             [xt-play.components.highlight :as hl]
-            [xt-play.config :as config]
-            [xt-play.model.client :as model]
+            [xt-play.model.client] ;; Required for subscription registrations
             [xt-play.model.run :as run]
             [xt-play.model.tx-batch :as tx-batch]
             [xt-play.util :as util]))
@@ -21,13 +19,7 @@
 ;; Todo
 ;; - pull out components to own ns
 
-(defn- language-dropdown [tx-type]
-  [dropdown {:items model/items
-             :selected tx-type
-             :on-click #(do
-                          (rf/dispatch [:dropdown-selection (:value %)])
-                          (rf/dispatch [::run/hide-results!]))
-             :label (get-in config/tx-types [tx-type :label])}])
+;; Removed language dropdown - SQL only
 
 (defn- spinner [] [:div {:class "flex justify-center items-center h-full"}
                    [:> SixDotsScale]])
@@ -72,30 +64,26 @@
           (map-indexed #(do ^{:key (str "span-" %1)} [:<> [:span %2] [:br]])))]]])
 
 (defn- display-table [results position]
-  (let [tx-type (rf/subscribe [:get-type])]
-    (when results
-      ^{:key position}
-      [:table {:class "table-auto w-full"}
-       [:thead
-        [:tr {:class "border-b"}
-         (for [label (first results)]
-           ^{:key label}
-           [:th {:class "text-left p-4"} label])]]
-       [:tbody
-        (doall
-         (for [[i row] (map-indexed vector (rest results))]
-           ^{:key (str "row-" i)}
-           [:tr {:class "border-b"}
-            (doall
-             (for [[ii value] (map-indexed vector row)]
-               ^{:key (str "row-" i " col-" ii)}
-               [:td {:class "text-left p-4 whitespace-pre-wrap break-all font-mono max-w-[30ch]"}
-                (if (= @tx-type :xtql)
-                  [hl/code {:language "clojure"}
-                   (pr-str value)]
-                  ;; Use sql-pr-str for SQL to get SQL-looking literals
-                  [hl/code {:language "json"}
-                   (util/sql-pr-str value)])]))]))]])))
+  (when results
+    ^{:key position}
+    [:table {:class "table-auto w-full"}
+     [:thead
+      [:tr {:class "border-b"}
+       (for [label (first results)]
+         ^{:key label}
+         [:th {:class "text-left p-4"} label])]]
+     [:tbody
+      (doall
+       (for [[i row] (map-indexed vector (rest results))]
+         ^{:key (str "row-" i)}
+         [:tr {:class "border-b"}
+          (doall
+           (for [[ii value] (map-indexed vector row)]
+             ^{:key (str "row-" i " col-" ii)}
+             [:td {:class "text-left p-4 whitespace-pre-wrap break-all font-mono max-w-[30ch]"}
+              ;; Use sql-pr-str for SQL to get SQL-looking literals
+              [hl/code {:language "json"}
+               (util/sql-pr-str value)]]))]))]]))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]
@@ -176,15 +164,13 @@
            :src "/public/images/xtdb-full-logo.svg"}]
     [title "Play"]]])
 
-(defn- header [tx-type tx-refs]
+(defn- header [tx-refs]
   [:header {:class "max-md:sticky top-0 z-50 bg-gray-200 py-2 px-4"}
    [:div {:class "container mx-auto flex flex-col sm:flex-row items-center gap-1"}
     [:div {:class "w-full flex flex-row items-center gap-4"}
      logo]
     [:div {:class "max-md:hidden flex-grow"}]
     [:div {:class "w-full flex flex-row items-center gap-1 md:justify-end"}
-     [language-dropdown tx-type]
-     [:div {:class "md:hidden flex-grow"}]
      [copy-button tx-refs]
      [run-button tx-refs]]]])
 
@@ -328,14 +314,12 @@
 (def ^:private mobile-gap [:hr {:class "sm:hidden"}])
 
 (defn app []
-  (let [tx-type (rf/subscribe [:get-type])]
-    (fn []
-      [:div {:class "flex flex-col min-h-screen w-full"}
-       [header @tx-type global-tx-refs]
-       [:div {:class "py-2 sm:px-4 flex-grow flex flex-row gap-2"}
-        (let [ctx {:editor (editor/default-editor @tx-type)
-                   :tx-refs global-tx-refs}]
-          [:div {:class "flex flex-col gap-4 sm:gap-2 w-full"}
-           [statements ctx]
-           mobile-gap])]
-       [footer]])))
+  [:div {:class "flex flex-col min-h-screen w-full"}
+   [header global-tx-refs]
+   [:div {:class "py-2 sm:px-4 flex-grow flex flex-row gap-2"}
+    (let [ctx {:editor editor/default-editor
+               :tx-refs global-tx-refs}]
+      [:div {:class "flex flex-col gap-4 sm:gap-2 w-full"}
+       [statements ctx]
+       mobile-gap])]
+   [footer]])

@@ -14,10 +14,6 @@
   (edn/read-string (slurp (format "test-resources/%s.edn" path))))
 
 (t/deftest run-handler-test
-  (t/testing "xtql example returns expected results"
-    (t/is (= {:status 200, :body [[[]] [[[:foo :xt/id] ["bar" 1]]]]}
-             (h/run-handler (t-file "xtql-example-request")))))
-
   (t/testing "sql example returns expected results"
     (t/is (= {:status 200,
               :body
@@ -37,21 +33,6 @@
              (h/run-handler (t-file "beta-sql-example-request"))))))
 
 (t/deftest run-handler-multi-transactions-test
-  (t/testing "multiple transactions in xtql"
-    (t/is (= {:status 200, :body [[[]] [[]]
-                                  [[[:foo :xt/id]
-                                    ["baz" 2]
-                                    ["bar" 1]]]]}
-             (h/run-handler
-              (assoc-in
-               (t-file "xtql-example-request")
-               [:parameters :body :tx-batches]
-               [{:txs "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]",
-                 :system-time "2024-12-01T00:00:00.000Z"}
-                {:txs "[:put-docs :docs {:xt/id 2 :foo \"baz\"}]",
-                 :system-time nil}
-                {:txs "(from :docs [xt/id foo])", :query true}])))))
-
   (t/testing "multiple transacions on sql"
     (t/is (= {:status 200,
               :body
@@ -142,8 +123,7 @@
         (h/run-handler
          {:parameters
           {:body
-           {:tx-type "sql-v2",
-            :tx-batches [{:txs "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"
+           {:tx-batches [{:txs "SELECT (PERIOD(DATE '2024-01-01', DATE '2024-01-04') + INTERVAL '1' MINUTE)"
                           :query true}]}}})))))
 
 (t/deftest sql-says-carol-is-red-test
@@ -178,25 +158,22 @@
                 "red"
                 #inst "2023-08-31T23:00:00.000000000-00:00"
                 #inst "2024-01-08T00:00:00.000000000-00:00"]]}
-             (h/run-handler (assoc-in
-                             (t-file "sql-multi-transaction")
-                             [:parameters :body :tx-type]
-                             "sql-v2")))))
+             (h/run-handler (t-file "sql-multi-transaction")))))
 
   (t/testing "Bob still likes fishing - don't determine columns based on the first row"
     (t/is (= {:status 200,
-             :body
-             [[:_id :favorite_color :info :likes :name]
-              [2 "red" nil nil "carol"]
-              [9 nil nil ["fishing" 3.14 {:nested "data"}] "bob"]]}
+              :body
+              [[:_id :favorite_color :info :likes :name]
+               [2 "red" nil nil "carol"]
+               [9 nil nil ["fishing" 3.14 {:nested "data"}] "bob"]]}
              (h/run-handler
-              (->  (t-file "sql-multi-transaction")
-                   (assoc-in [:parameters :body :query] "SELECT * FROM people")
-                   (assoc-in [:parameters :body :tx-type] "sql-v2")))))))
+              (assoc-in
+               (t-file "sql-multi-transaction")
+               [:parameters :body :query]
+               "SELECT * FROM people"))))))
 
 (def docs-json
- "{\"tx-batches\":[{\"txs\":\"[[:sql \\\"INSERT INTO product (_id, name, price) VALUES\\\\n(1, 'An Electric Bicycle', 400)\\\"]]\",\"system-time\":\"2024-01-01\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 405 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-05\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 350 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-10\"}],\"query\":\"\\\"SELECT *, _valid_from\\\\nFROM product\\\\nFOR VALID_TIME ALL -- i.e. \\\\\\\"show me all versions\\\\\\\"\\\\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \\\\\\\"...as observed at month end\\\\\\\"\\\"\"}"
-)
+  "{\"tx-batches\":[{\"txs\":\"[[:sql \\\"INSERT INTO product (_id, name, price) VALUES\\\\n(1, 'An Electric Bicycle', 400)\\\"]]\",\"system-time\":\"2024-01-01\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 405 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-05\"},{\"txs\":\"[[:sql \\\"UPDATE product SET price = 350 WHERE _id = 1\\\"]]\",\"system-time\":\"2024-01-10\"}],\"query\":\"\\\"SELECT *, _valid_from\\\\nFROM product\\\\nFOR VALID_TIME ALL -- i.e. \\\\\\\"show me all versions\\\\\\\"\\\\nFOR SYSTEM_TIME AS OF DATE '2024-01-31' -- \\\\\\\"...as observed at month end\\\\\\\"\\\"\"}")
 
 (t/deftest docs-run
   (let [response (h/docs-run-handler {:parameters {:body (json/read-str docs-json :key-fn keyword)}})]
