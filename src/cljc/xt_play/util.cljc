@@ -38,12 +38,13 @@
   "Renders a value as SQL literal notation"
   [v]
   (cond
-    (nil? v) "nil"
+    (nil? v) "NULL"
 
-;; Check if string is already a SQL literal (DATE '...', TIME '...', TIMESTAMP '...', INTERVAL '...')
+;; Check if string is already a SQL literal (DATE '...', TIME '...', TIMESTAMP '...', INTERVAL '...', PERIOD(...))
     ;; If so, don't add extra quotes
     (and (string? v)
-         (re-matches #"(?i)(DATE|TIME|TIMESTAMP|INTERVAL)\s+'.*'" v))
+         (or (re-matches #"(?i)(DATE|TIME|TIMESTAMP|INTERVAL)\s+'.*'" v)
+             (re-matches #"(?i)PERIOD\(.*\)" v)))
     v
 
     ;; Regular strings - use SQL single quotes instead of Clojure double quotes
@@ -64,8 +65,13 @@
          (instance? java.time.OffsetDateTime v) (str "TIMESTAMP '" v "'")
          (instance? java.time.ZonedDateTime v) (str "TIMESTAMP '" v "'")
          (instance? java.time.Instant v) (str "TIMESTAMP '" v "'")
-;; xtdb.time.Interval
-         (instance? xtdb.time.Interval v) (str "INTERVAL '" (format-interval v) "'")]
+         ;; xtdb.time.Interval
+         (instance? xtdb.time.Interval v) (str "INTERVAL '" (format-interval v) "'")
+         ;; xtdb.types.ZonedDateTimeRange (PERIOD)
+         (instance? xtdb.types.ZonedDateTimeRange v)
+         (let [from (.getFrom v)
+               to (.getTo v)]
+           (str "PERIOD(TIMESTAMP '" from "', " (if to (str "TIMESTAMP '" to "'") "NULL") ")"))]
         :cljs
         [(instance? js/Date v) (str "TIMESTAMP '" (.toISOString v) "'")])
 
@@ -128,8 +134,13 @@
        (instance? java.time.OffsetDateTime v) (str "TIMESTAMP '" v "'")
        (instance? java.time.ZonedDateTime v) (str "TIMESTAMP '" v "'")
        (instance? java.time.Instant v) (str "TIMESTAMP '" v "'")
-;; xtdb.time.Interval
+       ;; xtdb.time.Interval
        (instance? xtdb.time.Interval v) (str "INTERVAL '" (format-interval v) "'")
+       ;; xtdb.types.ZonedDateTimeRange (PERIOD)
+       (instance? xtdb.types.ZonedDateTimeRange v)
+       (let [from (.getFrom v)
+             to (.getTo v)]
+         (str "PERIOD(TIMESTAMP '" from "', " (if to (str "TIMESTAMP '" to "'") "NULL") ")"))
        ;; Recursive cases
        (map? v) (into {} (map (fn [[k v]] [k (transform-dates-to-sql v)]) v))
        (vector? v) (mapv transform-dates-to-sql v)
