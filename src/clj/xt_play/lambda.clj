@@ -5,14 +5,37 @@
   (:require [muuntaja.core :as m]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]
             [xt-play.config :as config]
             [xt-play.base64 :as b64]
             [xt-play.handler :as h]))
 
+(defn- delete-recursively
+  "Recursively delete a file or directory and all its contents"
+  [^java.io.File file]
+  (when (.exists file)
+    (if (.isDirectory file)
+      (do
+        (doseq [child (.listFiles file)]
+          (delete-recursively child))
+        (.delete file))
+      (.delete file))))
+
+(defn- clear-directory
+  "Clear all contents of a directory"
+  [^java.io.File dir]
+  (when (.exists dir)
+    (doseq [file (.listFiles dir)]
+      (delete-recursively file))
+    (log/info "Cleared disk cache directory:" (.getPath dir))))
+
 (defn -init []
-  ; NOTE: This ensure xtdb is warmed up before starting the server
+  ; Clear disk cache from previous Lambda container executions
+  (clear-directory (io/file "/tmp/xtdb-cache"))
+
+  ; NOTE: This ensures xtdb is warmed up before starting the server
   ;       Otherwise, the first few requests will time out
   (with-open [node (xtn/start-node config/node-config)]
     (xt/status node))

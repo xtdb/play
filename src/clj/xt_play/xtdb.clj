@@ -1,12 +1,37 @@
 (ns xt-play.xtdb
   (:require [clojure.tools.logging :as log]
+            [clojure.java.io :as io]
             [next.jdbc :as jdbc]
             [xt-play.config :as config]
             [xtdb.api :as xt]
             [xtdb.node :as xtn]
             [xtdb.next.jdbc :as xjdbc]))
 
+(defn- delete-recursively
+  "Recursively delete a directory and all its contents"
+  [^java.io.File file]
+  (when (.exists file)
+    (if (.isDirectory file)
+      (do
+        (doseq [child (.listFiles file)]
+          (delete-recursively child))
+        (.delete file))
+      (.delete file))))
+
+(defn- clear-cache-directory
+  "Clear disk cache before starting a new node to prevent /tmp exhaustion"
+  []
+  (let [cache-dir (io/file "/tmp/xtdb-cache")]
+    (when (.exists cache-dir)
+      (doseq [file (.listFiles cache-dir)]
+        (delete-recursively file))
+      (log/debug "Cleared disk cache directory before node start"))))
+
 (defn with-xtdb [f]
+  ;; Clear cache before each request to prevent /tmp exhaustion
+  ;; This is critical for Lambda with limited ephemeral storage
+  (clear-cache-directory)
+
   (with-open [node (xtn/start-node config/node-config)]
     (f node)))
 
