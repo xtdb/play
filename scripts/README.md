@@ -42,12 +42,13 @@ The action will generate the dataset and upload it to S3 automatically.
 To generate a TPC-H dataset locally at scale factor 0.01:
 
 ```bash
-clojure -M:generate-tpch xtdb-play-datasets 0.01
+clojure -M:generate-tpch xtdb-play-datasets 0.01 eu-west-1
 ```
 
 **Arguments:**
 - `bucket-name`: The S3 bucket to upload to (e.g., `xtdb-play-datasets`)
 - `scale-factor`: The TPC-H scale factor (0.01 = ~10MB, 1.0 = ~1GB, etc.)
+- `region`: AWS region where the bucket is located (e.g., `eu-west-1`)
 
 **Note:** Local generation requires AWS credentials configured in your environment (see Prerequisites).
 
