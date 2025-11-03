@@ -18,7 +18,7 @@ env:
 jobs:
   deploy-infrastructure:
     runs-on: ubuntu-latest
-    if: github.repository == 'xtdb/xt-fiddle'
+    if: github.repository == 'xtdb/play'
     permissions:
       contents: read
     steps:

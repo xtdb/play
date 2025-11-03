@@ -29,7 +29,7 @@ The TPC-H benchmark provides a realistic dataset for testing database queries. W
 
 The easiest way to generate a dataset is using the GitHub Action:
 
-1. Go to the [Actions tab](https://github.com/xtdb/xt-fiddle/actions/workflows/generate-tpch.yml)
+1. Go to the [Actions tab](https://github.com/xtdb/play/actions/workflows/generate-tpch.yml)
 2. Click "Run workflow"
 3. Enter the scale factor (e.g., `0.01`)
 4. Enter the bucket name (default: `xtdb-play-datasets`)

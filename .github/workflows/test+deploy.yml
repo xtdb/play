@@ -58,7 +58,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     needs: [test, lint]
-    if: github.repository == 'xtdb/xt-fiddle'
+    if: github.repository == 'xtdb/play'
     permissions:
       contents: read
       packages: write

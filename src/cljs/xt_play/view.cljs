@@ -194,7 +194,7 @@
     [:span @(rf/subscribe [:version])]
     [:a {:href "https://docs.xtdb.com/quickstart/sql-overview"}
      "Examples"]
-    [:a {:href "https://github.com/xtdb/xt-fiddle"}
+    [:a {:href "https://github.com/xtdb/play"}
      "GitHub"]]])
 
 (def ^:private initial-message [:p {:class "text-gray-400"} "Enter a statement to see results"])
