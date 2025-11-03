@@ -36,6 +36,13 @@ Resources:
                 Resource:
                   - arn:aws:s3:::xt-play-lambda-code
                   - arn:aws:s3:::xt-play-lambda-code/*
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::xtdb-play-datasets
+                  - arn:aws:s3:::xtdb-play-datasets/*
         # https://github.com/aws-actions/aws-cloudformation-github-deploy?tab=readme-ov-file#permissions
         - PolicyName: cloudformation-deploy
           PolicyDocument:
