@@ -59,7 +59,7 @@ jobs:
       - name: Generate TPC-H Dataset
         run: |
           echo "Generating TPC-H dataset with scale factor ${{ inputs.scale-factor }}"
-          clojure -M:generate-tpch ${{ inputs.bucket-name }} ${{ inputs.scale-factor }}
+          clojure -M:generate-tpch ${{ inputs.bucket-name }} ${{ inputs.scale-factor }} ${{ env.AWS_REGION }}
 
       - name: Verify upload
         run: |
