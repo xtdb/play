@@ -17,6 +17,7 @@ on:
 
 env:
   AWS_REGION: eu-west-1
+  JVM_OPTS: "--add-opens=java.base/java.nio=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true"
 
 jobs:
   generate-dataset:
