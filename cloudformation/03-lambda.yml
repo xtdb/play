@@ -26,7 +26,7 @@ Resources:
       # TODO: Tune? Works well enough for now
       MemorySize: 1769  # Needed to increase the CPU
 
-      Timeout: 15
+      Timeout: 120  # 2 minutes
 
       # Makes the lambda quick enough to be viable
       SnapStart:
