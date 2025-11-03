@@ -9,7 +9,8 @@
             [xtdb.api :as xt]
             [xtdb.datasets.tpch :as tpch]
             [xtdb.node :as xtn]
-            [xtdb.db-catalog :as db-catalog])
+            [xtdb.db-catalog :as db-catalog]
+            [xtdb.compactor :as compactor])
   (:import [xtdb.aws.s3 S3Configurator]
            [software.amazon.awssdk.regions Region]))
 
@@ -38,9 +39,14 @@
       ;; Wait for data to be ingested
       (Thread/sleep 5000)
 
-;; Finish block to ensure all data is written
+      ;; Finish block to ensure all data is written
       (log/info "Calling finish-block to ensure data is persisted...")
       (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
+
+      ;; Compact all data
+      (log/info "Starting compaction...")
+      (compactor/compact-all! node nil)
+      (log/info "Compaction complete")
 
       (log/info "Dataset generation complete!"))))
 
