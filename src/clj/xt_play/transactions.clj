@@ -155,15 +155,22 @@
         (doall (mapv
                 (fn [{:keys [system-time query txs] :as batch}]
                   (log/debug tx-type "running batch: " batch)
-                  (try
-                    (if query
-                      (xtdb/query node txs)
-                      (xtdb/submit! node txs {:system-time system-time}))
-                    (catch Throwable ex
-                      (log/error "Exception while running transaction" (ex-message ex))
-                      {:error {:message (ex-message ex)
-                               :exception (.getClass ex)
-                               :data (ex-data ex)}})))
+                  (let [start-time (System/nanoTime)]
+                    (try
+                      (let [result (if query
+                                     (xtdb/query node txs)
+                                     (xtdb/submit! node txs {:system-time system-time}))
+                            elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
+                        (if query
+                          (assoc {} :result result :timing-ms elapsed-ms)
+                          (assoc result :timing-ms elapsed-ms)))
+                      (catch Throwable ex
+                        (let [elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
+                          (log/error "Exception while running transaction" (ex-message ex))
+                          {:error {:message (ex-message ex)
+                                   :exception (.getClass ex)
+                                   :data (ex-data ex)}
+                           :timing-ms elapsed-ms})))))
                 tx-batches))]
     (log/info "run!-tx-res" tx-results)
     tx-results))
@@ -173,9 +180,9 @@
     (let [tx-in-progress? (atom false)
           ;; Keep track of which batches have system-time
           batches-with-system-time (set (keep-indexed
-                                          (fn [idx batch]
-                                            (when (:system-time batch) idx))
-                                          tx-batches))
+                                         (fn [idx batch]
+                                           (when (:system-time batch) idx))
+                                         tx-batches))
           transformed (transform-statements tx-batches)
           res (map-indexed
                (fn [batch-idx txs]
@@ -183,45 +190,50 @@
                    (->> (mapv
                          (fn [statement]
                            (log/debug "beta executing statement:" statement)
-                           (let [upper-stmt (str/upper-case (first statement))
+                           (let [start-time (System/nanoTime)
+                                 upper-stmt (str/upper-case (first statement))
                                  is-begin? (str/includes? upper-stmt "BEGIN")
                                  is-commit? (str/includes? upper-stmt "COMMIT")
                                  ;; Skip rendering BEGIN/COMMIT if they were auto-added for system-time
-                                 skip-result? (and has-system-time? (or is-begin? is-commit?))]
-                             ;; Check if this is a PRAGMA statement
-                             (if-let [pragma (pragma-statement? (first statement))]
-                               ;; Handle PRAGMA statements
-                               (case pragma
-                                 :finish-block
-                                 (do
-                                   (log/info "Executing PRAGMA finish_block")
-                                   (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
-                                   {:result [[:status] ["Block finished"]]
-                                    :warnings []})
-                                 ;; Unknown pragma
-                                 {:error {:message (str "Unknown PRAGMA: " pragma)}})
-                               ;; Handle regular SQL statements
-                               (do
-                                 (when is-begin?
-                                   (reset! tx-in-progress? true))
-                                 (try
-                                   (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
-                                         res (xform-result rs)]
-                                     (when is-commit?
-                                       (reset! tx-in-progress? false))
-                                     (log/info :run-with-jdbc-conn-warnings warnings)
-                                     (if skip-result?
-                                       nil  ;; Return nil for auto-added BEGIN/COMMIT
-                                       {:result res
-                                        :warnings warnings}))
-                                   (catch Exception ex
-                                     (log/error "Exception while running statement" (ex-message ex))
-                                     (when @tx-in-progress?
-                                       (log/warn "Rolling back transaction")
-                                       (xtdb/jdbc-execute! conn ["ROLLBACK"]))
-                                     {:error {:message (ex-message ex)
-                                              :exception (.getClass ex)
-                                              :data (ex-data ex)}}))))))
+                                 skip-result? (and has-system-time? (or is-begin? is-commit?))
+                                 result
+                                 ;; Check if this is a PRAGMA statement
+                                 (if-let [pragma (pragma-statement? (first statement))]
+                                   ;; Handle PRAGMA statements
+                                   (case pragma
+                                     :finish-block
+                                     (do
+                                       (log/info "Executing PRAGMA finish_block")
+                                       (.finishBlock (.getLogProcessor (db-catalog/primary-db node)))
+                                       {:result [[:status] ["Block finished"]]
+                                        :warnings []})
+                                     ;; Unknown pragma
+                                     {:error {:message (str "Unknown PRAGMA: " pragma)}})
+                                   ;; Handle regular SQL statements
+                                   (do
+                                     (when is-begin?
+                                       (reset! tx-in-progress? true))
+                                     (try
+                                       (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
+                                             res (xform-result rs)]
+                                         (when is-commit?
+                                           (reset! tx-in-progress? false))
+                                         (log/info :run-with-jdbc-conn-warnings warnings)
+                                         (if skip-result?
+                                           nil ;; Return nil for auto-added BEGIN/COMMIT
+                                           {:result res
+                                            :warnings warnings}))
+                                       (catch Exception ex
+                                         (log/error "Exception while running statement" (ex-message ex))
+                                         (when @tx-in-progress?
+                                           (log/warn "Rolling back transaction")
+                                           (xtdb/jdbc-execute! conn ["ROLLBACK"]))
+                                         {:error {:message (ex-message ex)
+                                                  :exception (.getClass ex)
+                                                  :data (ex-data ex)}}))))
+                                 elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
+                             (when result
+                               (assoc result :timing-ms elapsed-ms))))
                          txs)
                         ;; Remove nils (filtered BEGIN/COMMIT results)
                         (remove nil?)
@@ -254,4 +266,4 @@
                (mapv #(update % :txs util/read-edn) tx-batches))
       (let [res (run!-tx node "sql"
                          [{:txs (util/read-edn query) :query true}])]
-        (first res)))))
+        (:result (first res))))))

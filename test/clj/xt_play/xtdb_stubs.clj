@@ -15,15 +15,16 @@
 
 (defn submit! [_node txs opts]
   (log/info :stub-submit-tx txs opts)
-  (execute! txs))
+  (execute! txs)
+  ;; Return empty map so assoc :timing-ms works
+  {})
 
 (defn query [_node q]
   (log/info :stub-query q)
   (execute! q)
   (or
    @resp
-   [[{:xt/id 2, :col1 "bar", :col2 " baz"} {:xt/id 1, :col1 "foo"}]
-    []]))
+   [{:xt/id 2, :col1 "bar", :col2 " baz"} {:xt/id 1, :col1 "foo"}]))
 
 (defn jdbc-execute! [_conn statement]
   (log/info :stub-jdbc-execute! statement)

@@ -261,7 +261,7 @@
                    the-result (prune-tx-results-fn (get results position))]
                [spacer-header (count results)
                 (map-indexed
-                 (fn [idx {:keys [result error warnings]}]
+                 (fn [idx {:keys [result error warnings timing-ms]}]
                    ^{:key idx}
                    [:div {:class (if (pos? idx)
                                    "border-t-2 border-gray-100 py-2"
@@ -278,7 +278,10 @@
                       (seq result) [display-table result (str position "-" idx)]
                       :else no-results-message)
                     (when (seq warnings)
-                      [display-warnings warnings])])
+                      [display-warnings warnings])
+                    (when timing-ms
+                      [:div {:class "text-right text-xs text-gray-500 pr-4 pb-2"}
+                       (str timing-ms " ms")])])
                  the-result)]))))])))
 
 (defn- rm-stmt-header [id system-time position]
