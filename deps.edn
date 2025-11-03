@@ -77,8 +77,12 @@
 
   :generate-tpch
   {:extra-paths ["scripts"]
-   :extra-deps {com.xtdb/xtdb-datasets {:mvn/version "2.x-SNAPSHOT"}
-                com.xtdb/xtdb-aws {:mvn/version "2.x-SNAPSHOT"}}
+   :extra-deps {com.xtdb/xtdb-api {:mvn/version "2.x-SNAPSHOT"}
+                com.xtdb/xtdb-core {:mvn/version "2.x-SNAPSHOT"}
+                com.xtdb/xtdb-datasets {:mvn/version "2.x-SNAPSHOT"
+                                        :exclusions [com.xtdb/xtdb]}
+                com.xtdb/xtdb-aws {:mvn/version "2.x-SNAPSHOT"
+                                   :exclusions [com.xtdb/xtdb]}}
    :main-opts ["-m" "generate-tpch"]
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
               "-Dio.netty.tryReflectionSetAccessible=true"]}}
