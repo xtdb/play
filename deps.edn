@@ -73,7 +73,15 @@
    :main-opts ["-m" "kaocha.runner"]}
 
   :build {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.8.4" :git/sha "8c3cd69"}}
-          :ns-default build}}
+          :ns-default build}
+
+  :generate-tpch
+  {:extra-paths ["scripts"]
+   :extra-deps {com.xtdb/xtdb-datasets {:mvn/version "2.x-SNAPSHOT"}
+                com.xtdb/xtdb-aws {:mvn/version "2.x-SNAPSHOT"}}
+   :main-opts ["-m" "generate-tpch"]
+   :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
+              "-Dio.netty.tryReflectionSetAccessible=true"]}}
 
  :mvn/repos
  {"central" {:url "https://repo1.maven.org/maven2/"}

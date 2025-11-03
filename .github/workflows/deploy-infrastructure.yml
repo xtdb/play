@@ -1,0 +1,101 @@
+---
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: 'CloudFormation stack to deploy'
+        required: true
+        type: choice
+        options:
+          - '02-lambda-deps'
+          - '05-datasets-bucket'
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    if: github.repository == 'xtdb/xt-fiddle'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Determine stack name
+        id: stack-info
+        run: |
+          case "${{ inputs.stack }}" in
+            "02-lambda-deps")
+              echo "stack_name=xt-play-lambda-deps" >> $GITHUB_OUTPUT
+              echo "template=cloudformation/02-lambda-deps.yml" >> $GITHUB_OUTPUT
+              echo "capabilities=CAPABILITY_IAM" >> $GITHUB_OUTPUT
+              ;;
+            "05-datasets-bucket")
+              echo "stack_name=xt-play-datasets" >> $GITHUB_OUTPUT
+              echo "template=cloudformation/05-datasets-bucket.yml" >> $GITHUB_OUTPUT
+              echo "capabilities=" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Check if stack exists
+        id: stack-exists
+        run: |
+          if aws cloudformation describe-stacks --stack-name ${{ steps.stack-info.outputs.stack_name }} 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Stack exists, will update"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Stack does not exist, will create"
+          fi
+
+      - name: Deploy CloudFormation Stack
+        run: |
+          if [ "${{ steps.stack-exists.outputs.exists }}" == "true" ]; then
+            echo "Updating stack: ${{ steps.stack-info.outputs.stack_name }}"
+            if [ -n "${{ steps.stack-info.outputs.capabilities }}" ]; then
+              aws cloudformation update-stack \
+                --stack-name ${{ steps.stack-info.outputs.stack_name }} \
+                --template-body file://${{ steps.stack-info.outputs.template }} \
+                --capabilities ${{ steps.stack-info.outputs.capabilities }}
+            else
+              aws cloudformation update-stack \
+                --stack-name ${{ steps.stack-info.outputs.stack_name }} \
+                --template-body file://${{ steps.stack-info.outputs.template }}
+            fi
+            aws cloudformation wait stack-update-complete \
+              --stack-name ${{ steps.stack-info.outputs.stack_name }}
+          else
+            echo "Creating stack: ${{ steps.stack-info.outputs.stack_name }}"
+            if [ -n "${{ steps.stack-info.outputs.capabilities }}" ]; then
+              aws cloudformation create-stack \
+                --stack-name ${{ steps.stack-info.outputs.stack_name }} \
+                --template-body file://${{ steps.stack-info.outputs.template }} \
+                --capabilities ${{ steps.stack-info.outputs.capabilities }}
+            else
+              aws cloudformation create-stack \
+                --stack-name ${{ steps.stack-info.outputs.stack_name }} \
+                --template-body file://${{ steps.stack-info.outputs.template }}
+            fi
+            aws cloudformation wait stack-create-complete \
+              --stack-name ${{ steps.stack-info.outputs.stack_name }}
+          fi
+
+      - name: Show stack outputs
+        run: |
+          echo "Stack deployment complete!"
+          echo "Stack details:"
+          aws cloudformation describe-stacks \
+            --stack-name ${{ steps.stack-info.outputs.stack_name }} \
+            --query 'Stacks[0].[StackStatus,Outputs]' \
+            --output table

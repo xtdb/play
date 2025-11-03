@@ -1,0 +1,67 @@
+---
+name: Generate TPC-H Dataset
+
+on:
+  workflow_dispatch:
+    inputs:
+      scale-factor:
+        description: 'TPC-H Scale Factor (e.g., 0.01, 0.1, 1.0)'
+        required: true
+        default: '0.01'
+        type: string
+      bucket-name:
+        description: 'S3 Bucket Name'
+        required: true
+        default: 'xtdb-play-datasets'
+        type: string
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  generate-dataset:
+    runs-on: ubuntu-latest
+    if: github.repository == 'xtdb/xt-fiddle'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Prepare java
+        uses: actions/setup-java@v4.2.1
+        with:
+          distribution: 'temurin'
+          java-version: '24'
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
+        with:
+          cli: 1.11.3.1463
+
+      - name: Cache clojure dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: cljdeps-tpch-${{ hashFiles('deps.edn') }}
+          restore-keys: cljdeps-
+
+      - name: Generate TPC-H Dataset
+        run: |
+          echo "Generating TPC-H dataset with scale factor ${{ inputs.scale-factor }}"
+          clojure -M:generate-tpch ${{ inputs.bucket-name }} ${{ inputs.scale-factor }}
+
+      - name: Verify upload
+        run: |
+          echo "Verifying dataset was uploaded to S3..."
+          aws s3 ls s3://${{ inputs.bucket-name }}/tpch-sf${{ inputs.scale-factor }}/ --recursive --human-readable --summarize

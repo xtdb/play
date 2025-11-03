@@ -1,0 +1,40 @@
+# This file creates a public S3 bucket for hosting XTDB datasets (e.g., TPC-H)
+# These datasets can be used by anyone, including the lambda, to initialize XTDB with sample data
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  DatasetsBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'xtdb-play-datasets'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  DatasetsBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref DatasetsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'PublicReadGetObject'
+            Effect: 'Allow'
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${DatasetsBucket.Arn}/*'
+          - Sid: 'PublicListBucket'
+            Effect: 'Allow'
+            Principal: '*'
+            Action: 's3:ListBucket'
+            Resource: !GetAtt DatasetsBucket.Arn
+
+  SSMDatasetsBucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: 'xt-play_datasets-bucket'
+      Value: !Ref DatasetsBucket
