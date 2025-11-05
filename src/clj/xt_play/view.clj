@@ -10,6 +10,9 @@
             :content "width=device-width, initial-scale=1"}]
     [:meta {:name "description"
             :content ""}]
+    [:link {:rel "icon"
+            :type "image/svg+xml"
+            :href "/public/favicon.svg"}]
     [:link {:rel "stylesheet"
             :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"}]
     [:link {:rel "stylesheet"
