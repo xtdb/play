@@ -16,11 +16,11 @@
 
 (defn generate-dataset
   "Generates TPC-H dataset at given scale factor and stores in S3 bucket."
-  [bucket-name scale-factor region]
-  (log/info "Generating TPC-H dataset at scale factor" scale-factor "to bucket" bucket-name "in region" region)
+  [bucket-name scale-factor-str scale-factor-num region]
+  (log/info "Generating TPC-H dataset at scale factor" scale-factor-num "to bucket" bucket-name "in region" region)
 
   (let [node-config {:storage [:remote {:object-store [:s3 {:bucket bucket-name
-                                                            :prefix (str "tpch-sf" scale-factor "/")
+                                                            :prefix (str "tpch-sf" scale-factor-str "/")
                                                             :configurator (reify S3Configurator
                                                                             (configureClient [_ builder]
                                                                               (.region builder (Region/of region))))}]}]
@@ -30,9 +30,11 @@
 
     (with-open [node (xtn/start-node node-config)]
       (log/info "Node started, generating TPC-H data...")
+      (log/info "Scale factor type:" (type scale-factor-num) "value:" scale-factor-num)
 
       ;; Generate TPC-H dataset using DML (INSERT statements)
-      (tpch/submit-dml! node scale-factor)
+      ;; Explicitly cast to double primitive to ensure Java interop works correctly
+      (tpch/submit-dml! node (double scale-factor-num))
 
       (log/info "TPC-H data submitted, waiting for ingest...")
 
@@ -57,22 +59,23 @@
     (System/exit 1))
 
   (let [bucket-name (first args)
-        scale-factor (Double/parseDouble (second args))
+        scale-factor-str (second args)
+        scale-factor-num (Double/parseDouble scale-factor-str)
         region (nth args 2)]
 
     (println "=" (repeat 60 "="))
     (println "TPC-H Dataset Generator")
     (println "=" (repeat 60 "="))
     (println "Bucket:" bucket-name)
-    (println "Scale Factor:" scale-factor)
+    (println "Scale Factor:" scale-factor-str)
     (println "Region:" region)
     (println)
 
     (try
-      (generate-dataset bucket-name scale-factor region)
+      (generate-dataset bucket-name scale-factor-str scale-factor-num region)
       (println)
       (println "✓ Success! Dataset is now available in S3:")
-      (println (str "  s3://" bucket-name "/tpch-sf" scale-factor "/"))
+      (println (str "  s3://" bucket-name "/tpch-sf" scale-factor-str "/"))
       (catch Exception e
         (println "✗ Error generating dataset:")
         (println (.getMessage e))
