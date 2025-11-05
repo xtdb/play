@@ -51,8 +51,8 @@
 
 (defn- display-error [{:keys [exception message data]} position]
   ^{:key position}
-  [:div {:class "flex flex-col gap-2"}
-   [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-4"}
+  [:div {:class "flex flex-col gap-1 sm:gap-2"}
+   [:div {:class "bg-red-100 border-l-4 border-red-500 text-red-700 p-2 sm:p-4"}
     [:p {:class "font-bold"} (str "Error: " exception)]
     [:p {:class "whitespace-pre-wrap font-mono"}
      (->> (str/split message #"(?:\r\n|\r|\n)")
@@ -64,8 +64,8 @@
        [:p (pr-str data)]])]])
 
 (defn- display-warnings [warnings]
-  [:div {:class "flex flex-col gap-2"}
-   [:div {:class "bg-amber-500 border-l-4 border-amber-600 text-gray-500 p-4"}
+  [:div {:class "flex flex-col gap-1 sm:gap-2"}
+   [:div {:class "bg-amber-500 border-l-4 border-amber-600 text-gray-500 p-2 sm:p-4"}
     [:p {:class "font-bold"} "Warnings:"]
     [:p {:class "whitespace-pre-wrap font-mono"}
      (->> warnings
@@ -258,8 +258,9 @@
     (when (or @loading?
               @show-results?)
       ^{:key position}
-      [:div {:class (str half-window-col-class
-                         "grow h-auto max-h-none border overflow-x-auto overflow-y-hidden")}
+      [:div {:class (str "sm:mx-0 flex flex-col "
+                         "sm:flex-1 md:max-w-[48vw] lg:max-w-[49vw] "
+                         "border overflow-x-auto")}
        (if @loading?
          [spinner]
          (let [{::run/keys [results failure response?]} @results-or-failure]
@@ -281,8 +282,8 @@
                         (fn [idx {:keys [result error warnings timing-ms]}]
                           ^{:key idx}
                           [:div {:class (if (pos? idx)
-                                          "border-t-2 border-gray-100 py-2"
-                                          "py-2")}
+                                          "border-t-2 border-gray-100 py-0 sm:py-1"
+                                          "py-0 sm:py-1")}
                            (cond
                              (not response?) initial-message
                              (seq error) [display-error error (str position "-" idx)]
@@ -299,7 +300,7 @@
                            (when (seq warnings)
                              [display-warnings warnings])
                            (when timing-ms
-                             [:div {:class "text-right text-xs text-gray-500 pr-4 pb-2"}
+                             [:div {:class "text-right text-xs text-gray-500 pr-4 pb-1"}
                               (str timing-ms " ms")])])
                         the-result))]))))])))
 
@@ -313,7 +314,7 @@
                                                 [:dispatch [:update-url]]]])}]])
 
 (defn- add-statement-button []
-  [:div {:class "flex flex-col sm:flex-row pb-4"}
+  [:div {:class "flex flex-col sm:flex-row pb-2 sm:pb-4"}
    [:div {:class "flex-col flex-1"}
     [:div {:class "flex flex-row justify-center"}
      [:button {:class "w-10 h-10 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 rounded-full"
@@ -336,7 +337,7 @@
             (swap! tx-refs conj ref)
             ^{:key id}
             [:<>
-             [:div {:class "flex flex-col sm:flex-row gap-y-2"}
+             [:div {:class "flex flex-col sm:flex-row gap-y-1 sm:gap-y-2"}
               [:div {:class (str half-window-col-class
                                  " grow h-fit overflow-visible sm:overflow-y-auto sm:pr-4 ")}
                (when (< 1 (count statements))
@@ -356,10 +357,10 @@
     (fn []
       [:div {:class "flex flex-col min-h-screen w-full"}
        [header @tx-type global-tx-refs]
-       [:div {:class "py-2 sm:px-4 flex-grow flex flex-row gap-2"}
+       [:div {:class "py-1 sm:py-2 sm:px-4 flex-grow flex flex-row gap-2"}
         (let [ctx {:editor (editor/default-editor @tx-type)
                    :tx-refs global-tx-refs}]
-          [:div {:class "flex flex-col gap-4 sm:gap-2 w-full"}
+          [:div {:class "flex flex-col gap-1 sm:gap-2 w-full"}
            [statements ctx]
            mobile-gap])]
        [footer]])))
