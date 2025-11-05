@@ -86,7 +86,8 @@
                                    :exclusions [com.xtdb/xtdb]}}
    :main-opts ["-m" "generate-tpch"]
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"
-              "-Dio.netty.tryReflectionSetAccessible=true"]}}
+              "-Dio.netty.tryReflectionSetAccessible=true"
+              "-Dlogback.configurationFile=resources/logback-tpch.xml"]}}
 
  :mvn/repos
  {"central" {:url "https://repo1.maven.org/maven2/"}
