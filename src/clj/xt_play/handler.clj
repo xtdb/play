@@ -13,13 +13,14 @@
             [ring.middleware.params :as params]
             [ring.util.response :as response]
             [xt-play.transactions :as txs]
-            [xt-play.view :as view]))
+            [xt-play.view :as view]
+            [xtdb.serde :as serde]))
 
 (s/def ::system-time (s/nilable string?))
 (s/def ::txs string?)
 (s/def ::query (s/nilable string?))
 (s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs] :opt-un [::query])))
-(s/def ::tx-type #{"sql-v2" "xtql" "sql"})
+(s/def ::tx-type #{:sql-v2 :xtql :sql})
 (s/def ::db-run (s/keys :req-un [::tx-batches ::query]))
 (s/def ::beta-db-run (s/keys :req-un [::tx-batches ::tx-type]))
 
@@ -34,6 +35,12 @@
    :body {:message (ex-message ex)
           :exception (.getClass ex)
           :data (ex-data ex)}})
+
+(def muuntaja-instance
+  (m/create
+   (assoc-in m/default-options
+             [:formats "application/transit+json" :encoder-opts :handlers]
+             serde/transit-write-handlers)))
 
 (def exception-middleware
   (exception/create-exception-middleware
@@ -83,7 +90,7 @@
     ["/public/*" (ring/create-resource-handler)]]
    {:exception pretty/exception
     :data {:coercion rcs/coercion
-           :muuntaja m/instance
+           :muuntaja muuntaja-instance
            :middleware [#(wrap-cors %
                                     :access-control-allow-origin #".*"
                                     :access-control-allow-methods [:get :put :post :delete])
@@ -96,8 +103,8 @@
 
 (def handler
   (ring/ring-handler
-    routes
-    (ring/routes (ring/create-default-handler))))
+   routes
+   (ring/routes (ring/create-default-handler))))
 
 (defmethod ig/init-key ::handler [_ _opts]
   handler)

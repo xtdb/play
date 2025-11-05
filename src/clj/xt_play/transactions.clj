@@ -160,17 +160,26 @@
                       (let [result (if query
                                      (xtdb/query node txs)
                                      (xtdb/submit! node txs {:system-time system-time}))
-                            elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
-                        (if query
-                          (assoc {} :result result :timing-ms elapsed-ms)
-                          (assoc result :timing-ms elapsed-ms)))
+                            elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))
+                            formatted-result (if query
+                                               (if (and (= :xtql tx-type) (every? map? result))
+                                                 (if (empty? result)
+                                                   [[]]
+                                                   (let [ks (keys (apply merge result))]
+                                                     (into [(vec ks)]
+                                                           (mapv (fn [row]
+                                                                   (mapv #(get row %) ks))
+                                                                 result))))
+                                                 result)
+                                               [[]])]
+                        [{:result formatted-result :timing-ms elapsed-ms}])
                       (catch Throwable ex
                         (let [elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
                           (log/error "Exception while running transaction" (ex-message ex))
-                          {:error {:message (ex-message ex)
-                                   :exception (.getClass ex)
-                                   :data (ex-data ex)}
-                           :timing-ms elapsed-ms})))))
+                          [{:error {:message (ex-message ex)
+                                    :exception (.getClass ex)
+                                    :data (ex-data ex)}
+                            :timing-ms elapsed-ms}])))))
                 tx-batches))]
     (log/info "run!-tx-res" tx-results)
     tx-results))
@@ -215,12 +224,13 @@
                                        (reset! tx-in-progress? true))
                                      (try
                                        (let [[rs warnings] (xtdb/jdbc-execute! conn statement)
-                                             res (xform-result rs)]
+                                             is-dml? (dml? (first statement))
+                                             res (if is-dml? [[]] (xform-result rs))]
                                          (when is-commit?
                                            (reset! tx-in-progress? false))
                                          (log/info :run-with-jdbc-conn-warnings warnings)
                                          (if skip-result?
-                                           nil ;; Return nil for auto-added BEGIN/COMMIT
+                                           nil
                                            {:result res
                                             :warnings warnings}))
                                        (catch Exception ex
@@ -250,11 +260,9 @@
   [{:keys [tx-batches tx-type]}]
   (xtdb/with-xtdb
     (fn [node]
-      (if (#{"sql-v2" "sql"} tx-type)
+      (if (#{:sql-v2 :sql} tx-type)
         (run!-with-jdbc-conn node tx-batches)
-        (let [res (run!-tx node tx-type tx-batches)]
-          (log/debug "run!!" res)
-          (mapv util/map-results->rows res))))))
+        (run!-tx node tx-type tx-batches)))))
 
 (defn docs-run!!
   "Given transaction batches and a query from the docs, will return the query
@@ -262,8 +270,8 @@
   [{:keys [tx-batches query]}]
   (xtdb/with-xtdb
     (fn [node]
-      (run!-tx node "sql"
+      (run!-tx node :sql
                (mapv #(update % :txs util/read-edn) tx-batches))
-      (let [res (run!-tx node "sql"
+      (let [res (run!-tx node :sql
                          [{:txs (util/read-edn query) :query true}])]
-        (:result (first res))))))
+        (:result (ffirst res))))))

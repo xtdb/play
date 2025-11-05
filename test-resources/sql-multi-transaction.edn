@@ -1,6 +1,6 @@
 {:parameters
  {:body
-  {:tx-type "sql",
+  {:tx-type :sql,
    :tx-batches
    [{:txs "INSERT INTO people (_id, name) VALUES (6, 'fred')",
      :system-time "2024-01-01T00:00:00.000Z"}

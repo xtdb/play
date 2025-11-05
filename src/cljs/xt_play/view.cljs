@@ -75,7 +75,7 @@
   (let [tx-type (rf/subscribe [:get-type])]
     (when results
       ^{:key position}
-      [:table {:class "table-auto w-full"}
+      [:table {:class "table-auto min-w-full"}
        [:thead
         [:tr {:class "border-b"}
          (for [label (first results)]
@@ -88,14 +88,23 @@
            [:tr {:class "border-b"}
             (doall
              (for [[ii value] (map-indexed vector row)]
-               ^{:key (str "row-" i " col-" ii)}
-               [:td {:class "text-left p-4 whitespace-pre-wrap break-all font-mono max-w-[30ch]"}
-                (if (= @tx-type :xtql)
-                  [hl/code {:language "clojure"}
-                   (pr-str value)]
-                  ;; Use sql-pr-str for SQL to get SQL-looking literals
-                  [hl/code {:language "json"}
-                   (util/sql-pr-str value)])]))]))]])))
+               (let [value-str (pr-str value)
+                     is-long? (> (count value-str) 48)]
+                 ^{:key (str "row-" i " col-" ii)}
+                 (if is-long?
+                   [:td {:class "text-left p-4 font-mono break-all"
+                         :style {:max-width "48ch" :min-width "48ch"}}
+                    (if (= @tx-type :xtql)
+                      [hl/code {:language "clojure"}
+                       value-str]
+                      [hl/code {:language "json"}
+                       (util/sql-pr-str value)])]
+                   [:td {:class "text-left p-4 font-mono whitespace-nowrap"}
+                    (if (= @tx-type :xtql)
+                      [hl/code {:language "clojure"}
+                       value-str]
+                      [hl/code {:language "json"}
+                       (util/sql-pr-str value)])]))))]))]])))
 
 (defn- title [& body]
   (into [:h2 {:class "text-lg font-semibold"}]
@@ -208,9 +217,9 @@
       (contains? row :error)))
 
 (defn- spacer-header [cnt children]
-  [:div
+  [:div {:class "w-fit min-w-full"}
    (when (> cnt 1)
-     [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}
+     [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 w-full"}
       [:> XMarkIcon {:class icon-size
                      :visibility "hidden"}]])
    children])
@@ -244,45 +253,55 @@
         statements (second (get tx-batches position))
         loading? (rf/subscribe [::run/loading?])
         show-results? (rf/subscribe [::run/show-results?])
-        results-or-failure (rf/subscribe [::run/results-or-failure])]
+        results-or-failure (rf/subscribe [::run/results-or-failure])
+        tx-type (rf/subscribe [:get-type])]
     (when (or @loading?
               @show-results?)
       ^{:key position}
       [:div {:class (str half-window-col-class
-                         "grow h-auto max-h-none border overflow-x-auto ")}
+                         "grow h-auto max-h-none border overflow-x-auto overflow-y-hidden")}
        (if @loading?
          [spinner]
          (let [{::run/keys [results failure response?]} @results-or-failure]
-           (if failure
+           (cond
+             (and failure (zero? position))
              [display-error failure position]
+
+             failure
+             nil
+
+             :else
              (let [prune-tx-results-fn (if (:system-time statements)
                                          prune-tx-results
                                          identity)
-                   the-result (prune-tx-results-fn (get results position))]
+                   the-result (prune-tx-results-fn (get results position))
+                   current-tx-type @tx-type]
                [spacer-header (count results)
-                (map-indexed
-                 (fn [idx {:keys [result error warnings timing-ms]}]
-                   ^{:key idx}
-                   [:div {:class (if (pos? idx)
-                                   "border-t-2 border-gray-100 py-2"
-                                   "py-2")}
-                    (cond
-                      (not response?) initial-message
-                      (seq error) [display-error error (str position "-" idx)]
-                      (and (:query statements)
-                           (= [[]] result)) no-results-message
-                      (and (not (:query statements))
-                           (= [[]] result)) [:div {:class "pl-2 pt-2"}
-                                             "Statement succeeded."]
-                      (every? empty? result) (empty-rows-message result)
-                      (seq result) [display-table result (str position "-" idx)]
-                      :else no-results-message)
-                    (when (seq warnings)
-                      [display-warnings warnings])
-                    (when timing-ms
-                      [:div {:class "text-right text-xs text-gray-500 pr-4 pb-2"}
-                       (str timing-ms " ms")])])
-                 the-result)]))))])))
+                (doall (map-indexed
+                        (fn [idx {:keys [result error warnings timing-ms]}]
+                          ^{:key idx}
+                          [:div {:class (if (pos? idx)
+                                          "border-t-2 border-gray-100 py-2"
+                                          "py-2")}
+                           (cond
+                             (not response?) initial-message
+                             (seq error) [display-error error (str position "-" idx)]
+                             (and (:query statements)
+                                  (= [[]] result)) no-results-message
+                             (and (not (:query statements))
+                                  (= [[]] result)) [:div {:class "pl-2 pt-2"}
+                                                    (if (= current-tx-type :xtql)
+                                                      "Transaction succeeded."
+                                                      "Statement succeeded.")]
+                             (every? empty? result) (empty-rows-message result)
+                             (seq result) [display-table result (str position "-" idx)]
+                             :else no-results-message)
+                           (when (seq warnings)
+                             [display-warnings warnings])
+                           (when timing-ms
+                             [:div {:class "text-right text-xs text-gray-500 pr-4 pb-2"}
+                              (str timing-ms " ms")])])
+                        the-result))]))))])))
 
 (defn- rm-stmt-header [id system-time position]
   [:div {:class "flex flex-row justify-between items-center py-1 px-5 bg-gray-200 "}

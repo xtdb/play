@@ -1,9 +1,32 @@
 (ns xt-play.model.run
   (:require [ajax.core :as ajax]
+            [cognitect.transit :as transit]
             [re-frame.core :as rf]
             [xt-play.model.tx-batch :as tx-batch]))
 
+(deftype TemporalValue [tag value]
+  IPrintWithWriter
+  (-pr-writer [_ writer _]
+    (write-all writer "#xt/" tag " \"" value "\"")))
+
+(deftype XtdbValue [tag value]
+  IPrintWithWriter
+  (-pr-writer [_ writer _]
+    (write-all writer "#xt/" tag " " (pr-str value))))
+
 (def timeout-millis 30000)
+
+(def transit-read-handlers
+  {"time/zoned-date-time" (transit/read-handler #(TemporalValue. "zdt" %))
+   "time/offset-date-time" (transit/read-handler #(TemporalValue. "odt" %))
+   "time/local-date-time" (transit/read-handler #(TemporalValue. "ldt" %))
+   "time/local-date" (transit/read-handler #(TemporalValue. "ld" %))
+   "time/instant" (transit/read-handler #(TemporalValue. "instant" %))
+   "xtdb/tstz-range" (transit/read-handler #(XtdbValue. "tstz-range" (vec %)))
+   "xtdb/interval" (transit/read-handler #(XtdbValue. "interval" (vec %)))
+   "xtdb/clj-form" (transit/read-handler #(XtdbValue. "clj-form" %))
+   "xtdb/byte-array" (transit/read-handler #(XtdbValue. "byte-array" (vec %)))
+   "xtdb/path" (transit/read-handler #(XtdbValue. "path" %))})
 
 (defn- db-run-opts [{:keys [type] :as db}]
   (let [params {:tx-type type
@@ -12,9 +35,9 @@
     {:method :post
      :uri "/beta-db-run"
      :params params
-     :timeout timeout-millis ;; timeout must be greater than the API cold start response time
-     :format (ajax/json-request-format)
-     :response-format (ajax/json-response-format {:keywords? true})
+     :timeout timeout-millis
+     :format (ajax/transit-request-format)
+     :response-format (ajax/transit-response-format {:handlers transit-read-handlers})
      :on-success [::request-success]
      :on-failure [::request-failure]}))
 
@@ -78,16 +101,16 @@
 
 (rf/reg-sub
  ::results?
-  :<- [::results-or-failure]
-  :-> boolean)
+ :<- [::results-or-failure]
+ :-> boolean)
 
 (rf/reg-sub
  ::loading?
-  :-> ::loading?)
+ :-> ::loading?)
 
 (rf/reg-sub
  ::show-results?
-  :-> ::show-results?)
+ :-> ::show-results?)
 
 (comment
   (require '[re-frame.db :as db])

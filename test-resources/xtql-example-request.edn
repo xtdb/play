@@ -1,6 +1,6 @@
 {:parameters
  {:body
-  {:tx-type "xtql",
+  {:tx-type :xtql,
    :tx-batches
    [{:txs "[:put-docs :docs {:xt/id 1 :foo \"bar\"}]", :system-time nil}
     {:txs "(from :docs [xt/id foo])", :query true}]}}}
