@@ -14,7 +14,7 @@
   (-pr-writer [_ writer _]
     (write-all writer "#xt/" tag " " (pr-str value))))
 
-(def timeout-millis 30000)
+(def timeout-millis 85000)
 
 (def transit-read-handlers
   {"time/zoned-date-time" (transit/read-handler #(TemporalValue. "zdt" %))
