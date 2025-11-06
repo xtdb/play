@@ -24,6 +24,7 @@ Resources:
             DomainName: '{{resolve:ssm:xt-play_play-lambda-url-function-url-domain}}'
             CustomOriginConfig:
               OriginProtocolPolicy: https-only
+              OriginReadTimeout: 90
         DefaultCacheBehavior:
           TargetOriginId: LambdaOrigin
           AllowedMethods: [GET, HEAD, POST, PUT, PATCH, OPTIONS, DELETE]
