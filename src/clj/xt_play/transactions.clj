@@ -177,7 +177,7 @@
                         (let [elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
                           (log/error "Exception while running transaction" (ex-message ex))
                           [{:error {:message (ex-message ex)
-                                    :exception (.getClass ex)
+                                    :exception (.getName (.getClass ex))
                                     :data (ex-data ex)}
                             :timing-ms elapsed-ms}])))))
                 tx-batches))]
@@ -239,7 +239,7 @@
                                            (log/warn "Rolling back transaction")
                                            (xtdb/jdbc-execute! conn ["ROLLBACK"]))
                                          {:error {:message (ex-message ex)
-                                                  :exception (.getClass ex)
+                                                  :exception (.getName (.getClass ex))
                                                   :data (ex-data ex)}}))))
                                  elapsed-ms (Math/round (/ (- (System/nanoTime) start-time) 1000000.0))]
                              (when result

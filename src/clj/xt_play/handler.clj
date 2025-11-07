@@ -18,7 +18,8 @@
 
 (s/def ::system-time (s/nilable string?))
 (s/def ::txs string?)
-(s/def ::query (s/nilable string?))
+(s/def ::query (s/or :string (s/nilable string?)
+                     :bool boolean?))
 (s/def ::tx-batches (s/coll-of (s/keys :req-un [::system-time ::txs] :opt-un [::query])))
 (s/def ::tx-type #{:sql-v2 :xtql :sql})
 (s/def ::db-run (s/keys :req-un [::tx-batches ::query]))
