@@ -99,7 +99,7 @@
                        value-str]
                       [hl/code {:language "json"}
                        (util/sql-pr-str value)])]
-                   [:td {:class "text-left p-4 font-mono whitespace-nowrap"}
+                   [:td {:class "text-left p-4 font-mono whitespace-pre"}
                     (if (= @tx-type :xtql)
                       [hl/code {:language "clojure"}
                        value-str]
