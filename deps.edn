@@ -23,7 +23,7 @@
 
   ;; TODO: dev deps?
   info.sunng/ring-jetty9-adapter {:mvn/version "0.38.0"}
-  integrant/integrant {:mvn/version "0.8.1"}
+  integrant/integrant {:mvn/version "0.13.1"}
 
   ;; SSR
   hiccup/hiccup {:mvn/version "1.0.5"}
