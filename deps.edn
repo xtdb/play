@@ -4,9 +4,9 @@
  {org.clojure/clojure {:mvn/version "1.12.0"}
 
   ;; XTDB dependencies
-  com.xtdb/xtdb-api {:mvn/version "2.x-SNAPSHOT"}
-  com.xtdb/xtdb-core {:mvn/version "2.x-SNAPSHOT"}
-  com.xtdb/xtdb-aws {:mvn/version "2.x-SNAPSHOT"}
+  com.xtdb/xtdb-api {:mvn/version "2.2.0-beta2"}
+  com.xtdb/xtdb-core {:mvn/version "2.2.0-beta2"}
+  com.xtdb/xtdb-aws {:mvn/version "2.2.0-beta2"}
 
   org.postgresql/postgresql {:mvn/version "42.7.4"}
   com.github.seancorfield/next.jdbc {:mvn/version "1.3.939"}
@@ -78,11 +78,11 @@
 
   :generate-tpch
   {:extra-paths ["scripts"]
-   :extra-deps {com.xtdb/xtdb-api {:mvn/version "2.x-SNAPSHOT"}
-                com.xtdb/xtdb-core {:mvn/version "2.x-SNAPSHOT"}
-                com.xtdb/xtdb-datasets {:mvn/version "2.x-SNAPSHOT"
+   :extra-deps {com.xtdb/xtdb-api {:mvn/version "2.2.0-beta2"}
+                com.xtdb/xtdb-core {:mvn/version "2.2.0-beta2"}
+                com.xtdb/xtdb-datasets {:mvn/version "2.2.0-beta2"
                                         :exclusions [com.xtdb/xtdb]}
-                com.xtdb/xtdb-aws {:mvn/version "2.x-SNAPSHOT"
+                com.xtdb/xtdb-aws {:mvn/version "2.2.0-beta2"
                                    :exclusions [com.xtdb/xtdb]}}
    :main-opts ["-m" "generate-tpch"]
    :jvm-opts ["--add-opens=java.base/java.nio=ALL-UNNAMED"

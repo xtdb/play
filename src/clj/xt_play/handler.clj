@@ -47,7 +47,7 @@
   (exception/create-exception-middleware
    (merge
     exception/default-handlers
-    {xtdb.error.Incorrect handle-client-error
+    {xtdb.api.error.Incorrect handle-client-error
      clojure.lang.ExceptionInfo handle-client-error
      ::exception/default handle-other-error})))
 
